@@ -1,0 +1,17 @@
+[project]
+name = "ai-doc-assistant"
+version = "0.1.0"
+description = "AI 文档助手 — 基于 RAG 和 Agent 的智能知识库"
+requires-python = ">=3.12"
+dependencies = [
+    "openai>=1.0.0",
+    "chromadb>=0.5.0",
+    "streamlit>=1.30.0",
+    "python-dotenv>=1.0.0",
+    "pypdf>=5.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
