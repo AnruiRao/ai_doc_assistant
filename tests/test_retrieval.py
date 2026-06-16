@@ -1,8 +1,38 @@
 import pytest
 from pathlib import Path
+from io import BytesIO
+from pypdf import PdfWriter
+from pypdf.generic import DictionaryObject, NameObject, DecodedStreamObject
 from ingestion.loader import load_document, load_text, load_pdf
 from ingestion.chunker import Chunker
 from retrieval.vector_store import VectorStore
+
+
+def _make_test_pdf(path: Path, text: str = "Hello PDF World") -> None:
+    """用 pypdf 生成一个带文本的最小 PDF。"""
+    writer = PdfWriter()
+    page = writer.add_blank_page(612, 792)
+
+    font = DictionaryObject()
+    font[NameObject("/Type")] = NameObject("/Font")
+    font[NameObject("/Subtype")] = NameObject("/Type1")
+    font[NameObject("/BaseFont")] = NameObject("/Helvetica")
+    font_ref = writer._add_object(font)
+
+    resources = DictionaryObject()
+    fonts = DictionaryObject()
+    fonts[NameObject("/F1")] = font_ref
+    resources[NameObject("/Font")] = fonts
+    page[NameObject("/Resources")] = resources
+
+    content = f"BT /F1 12 Tf 100 700 Td({text})Tj ET\n".encode()
+    stream = DecodedStreamObject()
+    stream.set_data(content)
+    page[NameObject("/Contents")] = writer._add_object(stream)
+
+    buf = BytesIO()
+    writer.write(buf)
+    path.write_bytes(buf.getvalue())
 
 
 class TestLoader:
@@ -27,6 +57,42 @@ class TestLoader:
     def test_load_pdf_not_found(self):
         with pytest.raises(FileNotFoundError):
             load_pdf("/nonexistent/file.pdf")
+
+    def test_load_pdf_with_text(self, tmp_path):
+        f = tmp_path / "test.pdf"
+        _make_test_pdf(f, "Hello PDF World")
+        result = load_document(f)
+        assert "Hello PDF World" in result
+
+    def test_load_pdf_multiple_pages(self, tmp_path):
+        """验证多页 PDF 加载，每页内容应拼接在一起。"""
+        writer = PdfWriter()
+        for i in range(3):
+            page = writer.add_blank_page(612, 792)
+            font = DictionaryObject()
+            font[NameObject("/Type")] = NameObject("/Font")
+            font[NameObject("/Subtype")] = NameObject("/Type1")
+            font[NameObject("/BaseFont")] = NameObject("/Helvetica")
+            font_ref = writer._add_object(font)
+            resources = DictionaryObject()
+            fonts = DictionaryObject()
+            fonts[NameObject("/F1")] = font_ref
+            resources[NameObject("/Font")] = fonts
+            page[NameObject("/Resources")] = resources
+            content = f"BT /F1 12 Tf 100 700 Td(Page {i+1})Tj ET\n".encode()
+            stream = DecodedStreamObject()
+            stream.set_data(content)
+            page[NameObject("/Contents")] = writer._add_object(stream)
+
+        pdf_path = tmp_path / "multi.pdf"
+        buf = BytesIO()
+        writer.write(buf)
+        pdf_path.write_bytes(buf.getvalue())
+
+        result = load_document(pdf_path)
+        assert "Page 1" in result
+        assert "Page 2" in result
+        assert "Page 3" in result
 
 
 class TestChunker:
