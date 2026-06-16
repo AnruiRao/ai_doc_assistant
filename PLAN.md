@@ -64,7 +64,9 @@ app/            ← 前端界面：Streamlit
 - **Chunking 游标法**：`chunk_text()` 用 `while start < len(text)` + 游标回溯实现重叠切片
 - **Chroma auto-embed**：当前用 Chroma 内置 embedding（auto-embed），写/查穿同一函数避免配错
 - **多语言 embedding**：使用 `paraphrase-multilingual-MiniLM-L12-v2`，中文检索可用
-- **15 个 pytest 用例**：loader 5 + chunker 6 + vector_store 4
+- **Tool input model 设计**：多模式工具（save/search）用 Field description 标签区分，`use_for` 为唯一必填，LLM 只传需要的字段
+- **Tool run 返回值**：统一返回字符串（而非原始 dict），Agent 循环直接消费，不需要额外序列化
+- **17 个 pytest 用例**：loader 7 + chunker 6 + vector_store 4
 
 ```
 src/
@@ -75,7 +77,10 @@ src/
 │   └── exceptions.py   #   异常基类
 ├── tools/              ← 工具抽象层
 │   ├── base.py         #   Tool ABC 基类
-│   └── registry.py     #   ToolRegistry 注册器
+│   ├── registry.py     #   ToolRegistry 注册器
+│   └── impl/
+│       ├── calculator.py  #  计算器工具
+│       └── rag_tool.py    #  RAG 知识库工具（save + search）
 ├── agents/             ← 具体 Agent
 │   └── react_agent.py  #   ReAct 循环实现
 ├── ingestion/          ← 文档处理
@@ -127,6 +132,7 @@ src/
 - API 鉴权 + 速率限制
 - 流式输出 + 打字机效果
 - 异步文档处理队列
+- **`@tool` 装饰器**：在 `src/tools/` 下自实现 `@tool` 装饰器，展示语法糖与基类继承的对比
 - **LangChain 适配器**：在 `src/vendor/` 下加入 LangChain 对比实现或适配层
 
 ### V5 — 深度进阶级（可选）
@@ -156,8 +162,9 @@ src/
 
 **第一阶段（Agent 核心）已完成** ✅
 **第二阶段（RAG 检索）已完成** ✅ — 详见 TASKS.md。
+**任务 8（RAG Tool）已完成** ✅ — `src/tools/impl/rag_tool.py`，修复了 3 个设计问题。
 
-下一步：第三阶段整合（RAG Tool → Streamlit UI → 全链路验证）。
+下一步：任务 9（Streamlit UI）→ 任务 10（全链路验证）。
 
 ---
 

@@ -61,8 +61,8 @@
 ### 任务 6：pytest 测试 ✅
 
 - **文件**: `tests/test_retrieval.py`
-- **知识点**: pytest，tmp_path fixture，Chroma 集合生命周期管理
-- **验收**: 15 个测试用例全部通过
+- **知识点**: pytest，tmp_path fixture，Chroma 集合生命周期管理，pypdf PdfWriter 生成测试夹具
+- **验收**: 17 个测试用例全部通过
 - **补充**: VectorStore 测试用 `tmp_path` 隔离持久化，测试后 `delete_collection()` 清理
 
 ```bash
@@ -86,11 +86,15 @@ PYTHONPATH=src .venv/bin/python -m pytest tests/test_retrieval.py -v
 
 ## 第三阶段：整合
 
-### 任务 8：tools.py
+### 任务 8：rag_tool.py ✅
 
-- **文件**: `src/tools/impl/` 下建具体工具（如 `rag_tool.py`）
-- **知识点**: 继承 Tool 抽象基类，实现 run 方法
-- **验收**: 将 vector_store 的 search 包装成一个可被 Agent 调用的 Tool
+- **文件**: `src/tools/impl/rag_tool.py`
+- **知识点**: 继承 Tool 抽象基类，多模式 InputModel 设计，LLM 友好的 Field description
+- **验收**: save 模式存文档 → chunk → 向量化，search 模式检索 → 返回格式化结果
+- **补充**: 修复了 3 个原始问题：
+  - `f"字符串"` 不可 raise → 改为 return 错误字符串（Tool 场景下让 Agent 自己处理而非抛异常）
+  - `Chunker(None, None)` 崩溃 → 参数全设默认值，`run()` 内校验各模式必填字段
+  - `use_for` 不分模式 → schema 仅 `use_for` 为必填，`[save 模式]` / `[search 模式]` 标签在 description 区分
 - **依赖**: 3, 7
 
 ---
@@ -128,7 +132,10 @@ src/
 │   └── exceptions.py    # 异常
 ├── tools/
 │   ├── base.py          # Tool 抽象基类
-│   └── registry.py      # ToolRegistry 注册器
+│   ├── registry.py      # ToolRegistry 注册器
+│   └── impl/
+│       ├── calculator.py  # 计算器工具
+│       └── rag_tool.py    # RAG 知识库工具
 ├── agents/
 │   └── react_agent.py   # ReAct Agent 实现
 ├── ingestion/
@@ -144,6 +151,6 @@ src/
 ```
 第一阶段（已完成）           第二阶段（已完成）        第三阶段（当前）
 config → tools → react_agent ─┐
-                               ├──→ tools/impl → ui → 验证
+                               ├──→ rag_tool (✅) → ui → 验证
                               loader → chunker → vector_store
                                         └→ 测试

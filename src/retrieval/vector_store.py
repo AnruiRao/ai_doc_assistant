@@ -5,7 +5,7 @@ from chromadb.utils import embedding_functions
 
 
 class VectorStore:
-    def __init__(self, collection_name: str = "documents", persist_directory: str = "data/chroma"):
+    def __init__(self, collection_name: str = "documents", persist_directory: str | Path = "data/chroma"):
 
         huggingface_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
             model_name="paraphrase-multilingual-MiniLM-L12-v2"

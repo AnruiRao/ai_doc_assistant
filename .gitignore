@@ -19,3 +19,6 @@ data/docs/*.txt
 
 # OS
 .DS_Store
+
+# Claude
+CLAUDE.md
