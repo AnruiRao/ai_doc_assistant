@@ -99,16 +99,17 @@ PYTHONPATH=src .venv/bin/python -m pytest tests/test_retrieval.py -v
 
 ---
 
-### 任务 9：ui.py
+### 任务 9：ui.py ✅
 
 - **文件**: `src/app/ui.py`
 - **知识点**: Streamlit
+- **补充**: 侧边栏文件上传（tempfile → rag_tool save），聊天对话（session_state 管理历史 + agent.run 传入 history）
 - **验收**: 能上传文档、对话、Agent 回答正常
 - **依赖**: 8, 5
 
 ---
 
-### 任务 10：启动验证
+### 任务 10：启动验证 ✅
 
 - **操作**: 启动 Streamlit 测试全链路
 - **验收**: 上传文档 → 检索 → Agent 回答，全通
@@ -118,6 +119,10 @@ uv run streamlit run src/app/ui.py
 ```
 
 - **依赖**: 9
+
+---
+
+**V1 Demo 阶段全部完成** 🎉
 
 ---
 
@@ -143,14 +148,16 @@ src/
 │   └── chunker.py       # 文本切分器（chunk_size + chunk_overlap）
 ├── retrieval/
 │   └── vector_store.py  # Chroma 向量库封装
-└── app/                 # （待实现）
+└── app/
+    └── ui.py          # Streamlit 界面
 ```
 
 ## 总依赖图
 
 ```
-第一阶段（已完成）           第二阶段（已完成）        第三阶段（当前）
+第一阶段（已完成）           第二阶段（已完成）        第三阶段（V1 已完成 🎉）
 config → tools → react_agent ─┐
-                               ├──→ rag_tool (✅) → ui → 验证
+                               ├──→ rag_tool (✅) → ui (✅) → 验证 (✅)
                               loader → chunker → vector_store
                                         └→ 测试
+```
