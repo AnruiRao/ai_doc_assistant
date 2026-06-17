@@ -162,7 +162,7 @@ src/
 
 **第一阶段（Agent 核心）已完成** ✅
 **第二阶段（RAG 检索）已完成** ✅ — 详见 TASKS.md。
-**任务 8（RAG Tool）已完成** ✅ — `src/tools/impl/rag_tool.py`，修复了 3 个设计问题。
+**任务 8（RAG Tool）已完成** ✅ — V1 版本实现完成，修复了 ID 碰撞、改为 UUID 策略、新增 metadata 来源追溯 + delete 模式。
 
 下一步：任务 9（Streamlit UI）→ 任务 10（全链路验证）。
 
@@ -176,6 +176,26 @@ src/
 - 替换为 API-based embedding（千问 `text-embedding-v3` / OpenAI `text-embedding-3-small`）→ 转为手动方式
 - 调用方新增 `EmbeddingModel` 类，`VectorStore.add/search` 加可选 `embeddings` 参数
 - auto-embed 与手动方式二选一，不共存耦合
+
+---
+
+### RAG Tool ID 策略设计决策
+
+RAG Tool 的核心问题是：**多次保存文档时如何避免 Chroma 的 ID 碰撞（upsert 覆盖）？** 每阶段策略不同，随项目演进逐步完善。
+
+| 阶段 | ID 策略 | 方案说明 | 优点 | 缺点 |
+|---|---|---|---|---|
+| **V1 Demo** | UUID | 每次 save 生成 uuid4()，metadata 记 source 追溯来源 | 无碰撞风险，一行搞定 | ID 不可读，重复上传产生副本 |
+| **V2 工程化** | 文件名+序号 | 先按 metadata.source 删除旧 chunks，再重新插入 | 每个文件始终一份，ID 可读 | 需要 VectorStore 支持按条件删除 |
+| **V3 评测驱动** | 内容哈希 | MD5(chunk) 做 ID，内容不变 ID 不变 | 确定性、可复现评测、自动去重 | 哈希碰撞理论风险极低 |
+| **V4 生产化** | 文件名+序号+用户ID | 拼接 user123_doc.txt_0 | 多用户天然隔离 | ID 变长 |
+
+**V1 当前实现要点**：
+- `ids = [str(uuid4()) for _ in chunks]` — 永远不碰撞
+- `metadatas` 存 `{"source": path, "chunk_index": i}` — 搜索结果可显示来源
+- search 返回 `[来源: xxx]` 标签 — Agent 能告知用户信息出处
+- delete 模式先 `vs.count()` 检查再删除 — 空集合不误报"已删除"
+- 无相关性阈值 — V1 直接 top-k 返回，V3 引入距离阈值
 
 ---
 
