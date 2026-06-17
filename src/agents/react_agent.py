@@ -21,10 +21,10 @@ class ReactAgent(Agent):
         super().__init__(llm, system_prompt, tool_registry, config)
         self.max_steps = max_steps
 
-    def run(self, input_text: str, **kwargs) -> str:
+    def run(self, input_text: str, history: list[dict[str, str]], **kwargs) -> str:
 
         current_steps = 0
-        messages = self.build_messages(input_text)
+        messages = self.build_messages(input_text, history)
 
         while current_steps < self.max_steps:
             current_steps += 1

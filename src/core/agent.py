@@ -25,9 +25,9 @@ class Agent(ABC):
         pass
 
 
-    def build_messages(self, input_text: str) -> list[dict[str, Any]]:
-        messages: list[dict[str, Any]] = [
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": input_text}
-        ]
+    def build_messages(self, input_text: str, history: list[dict[str, str]]) -> list[dict[str, Any]]:
+        messages: list[dict[str, Any]] = [{"role": "system", "content": self.system_prompt}]
+        if history:
+            messages.extend(history)
+        messages.append({"role": "user", "content": input_text})
         return messages
