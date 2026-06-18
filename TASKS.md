@@ -162,22 +162,29 @@ config → tools → react_agent ─┐
                                         └→ 测试
 
 第四阶段（V2 工程化级 ⏳）
-src/core/   src/services/   src/api/   src/retrieval/   src/app/
-  │              │             │            │             │
-  ├ exceptions   ├ Document    ├ routes     ├ singleton   ├ thin client
-  ├ retry        ├ Agent       ├ schemas    ├ thread-safe └ → httpx → API
-  ├ logging      ├ Chat        ├ DI wiring
-  ├ AsyncBaseLLM └── 都调 API ─┘
-  └ AsyncReactAgent
+
+核心路径:
+  Phase 1 (✅) → Phase 2 (RAG: cleaner + recursive chunk) → Phase 3 (FastAPI + async bridge)
+                                                             ↓
+                                                    Phase 4 (E2E verify + docs)
+
+增强路径（核心完成后回补）:
+  ├ 服务层 (Document/Agent/Chat Service)
+  ├ VectorStore 单例 + Streamlit 瘦客户端
+  └ 测试 + CI (Mock + pytest-asyncio + GitHub Actions)
 ```
 
 ---
 
 ## 第四阶段：V2 工程化级
 
-### Phase 1：基础设施
+**核心路径**（按顺序做完即为 V2 完成）→ **增强路径**（时间充裕再回补）
 
-#### 1.1 pyproject.toml
+### 核心路径
+
+### Phase 1：基础设施 ✅ 已完成
+
+#### 1.1 pyproject.toml ✅
 
 - **文件**: `pyproject.toml`
 - **改动**:
@@ -185,7 +192,7 @@ src/core/   src/services/   src/api/   src/retrieval/   src/app/
   - 加运行时依赖：`fastapi>=0.115.0`、`uvicorn[standard]>=0.34.0`、`httpx>=0.28.0`、`tenacity>=9.0.0`、`structlog>=25.0.0`
   - 加开发依赖：`pytest-asyncio>=0.25.0`、`ruff>=0.9.0`
 
-#### 1.2 异常体系
+#### 1.2 异常体系 ✅
 
 - **文件**: `src/core/exceptions.py`
 - **改动**: 单类 `LLMException` → 树形体系
@@ -203,165 +210,105 @@ src/core/   src/services/   src/api/   src/retrieval/   src/app/
   ```
 - **知识点**: 各异常带 `status_code` 属性，FastAPI 按此映射 HTTP 状态码
 
-#### 1.3 重试机制
+#### 1.3 重试机制 ✅
 
 - **文件**: `src/core/retry.py` (新)
 - **实现**: tenacity 装饰器 `@llm_retry`
 - **策略**: 最多 3 次，指数退避 1s→2s→4s，最大 10s
 - **条件**: 只重试 `LLMConnectionError` / `LLMRateLimitError` / `LLMTimeoutError`
-- **关键**: 需把 OpenAI SDK 的异常（`openai.APIConnectionError` 等）映射到我们的异常子类
 
-#### 1.4 日志系统
+#### 1.4 日志系统 ✅
 
 - **文件**: `src/core/logging.py` (新)
 - **实现**: structlog，开发环境彩显、生产 JSON
-- **函数**: `configure_logging(level, json_output)` → FastAPI startup 调用
+- **函数**: `configure_logging(json_output)` → FastAPI startup 调用
 - **替换**: `ToolRegistry` 中的 `print()` → `logger.info()`
 
-### Phase 2：异步化
+### Phase 2：基础 RAG 改进（能力优先）
 
-#### 2.1 AsyncBaseLLM
+先把 RAG 质量提上去，让用户看到 Agent 回答变好，再做工程化。
 
-- **文件**: `src/core/llm.py`（添加类，保留同步 `BaseLLM`）
-- **实现**: 包装 `openai.AsyncOpenAI`，`async invoke()` + `async invoke_with_tools()`
-- **异常映射**: 捕获 `openai.*Error` → 抛 `LLM*Error`
-- **装饰器**: 方法上加 `@llm_retry`
+#### 2.1 文本噪声清理
 
-#### 2.2 AsyncAgent ABC
+- **文件**: `src/ingestion/cleaner.py`（新）
+- **实现**: 一个函数 `clean_text(raw: str) -> str`
+- **规则**: 连续空行压缩（2+ → 1）、首尾空白修剪、特殊字符过滤（保留中文/英文/数字/常见标点）
+- **注意**: 不做 Processor 框架抽象
 
-- **文件**: `src/core/agent.py`（添加类）
-- **要点**: `abstractmethod async def run()`，`build_messages()` 保持同步
+#### 2.2 递归分割
 
-#### 2.3 AsyncReactAgent
+- **文件**: `src/ingestion/chunker.py`（改进）
+- **改动**: 加 `recursive_split(text, chunk_size=500)` 函数
+- **规则**: 优先按 `\n\n` 分段落 → 段落太长按 `\n` 分句 → 最后按字符截断
+- **兼容**: 保留原有 `chunk_text()` 不动
 
-- **文件**: `src/agents/react_agent.py`（添加类）
-- **要点**: Tool 执行用 `asyncio.to_thread(tool.run, **args)`，超限抛 `AgentError`
+#### 2.3 集成到 rag_tool
 
-#### 2.4 异步工具
+- **文件**: `src/tools/impl/rag_tool.py`（改进）
+- **改动**: save 模式先 `clean_text()` 再 chunk，默认用 `recursive_split`
+
+### Phase 3：FastAPI + 异步桥接
+
+#### 3.1 异步工具
 
 - **文件**: `src/core/async_utils.py`（新）
-- **要点**: 统一 `run_in_thread(func)` 包装 `asyncio.to_thread`
+- **实现**: 一个函数 `run_in_thread(func, *args)` 包装 `asyncio.to_thread`
+- **用途**: FastAPI 异步路由中调 sync Agent
 
-### Phase 3：服务层
-
-#### 3.1 DocumentService
-
-- **文件**: `src/services/document_service.py`（新）
-- **方法**: `async ingest_document()`、`async search_documents()`、`async delete_collection()`
-- **输出**: Pydantic DTO（`DocumentIngestResult`, `SearchResult`）
-
-#### 3.2 AgentService
-
-- **文件**: `src/services/agent_service.py`（新）
-- **方法**: `async chat(message, history)` → 运行 agent 循环
-- **错误处理**: `AgentError` 返回部分回答，`LLMError` 向上抛
-
-#### 3.3 ChatService
-
-- **文件**: `src/services/chat_service.py`（新）
-- **方法**: `get_or_create_history()`, `append_message()`, `clear_session()`
-- **存储**: 内存 dict（V2 单用户足够，V4 换 Redis）
-
-### Phase 4：FastAPI 应用
-
-#### 4.1 目录结构
+#### 3.2 目录结构
 
 ```
 src/api/
 ├── __init__.py          create_app() 工厂
 ├── main.py              启动入口（uvicorn）
-├── dependencies.py      FastAPI Depends 懒加载单例
 ├── routes/
 │   ├── health.py        GET /health
-│   ├── chat.py          POST /chat, GET /chat/{id}/history
-│   └── documents.py     POST /documents/upload, POST /documents/search, DELETE /
+│   └── chat.py          POST /chat
 └── schemas/
-    ├── chat.py          ChatRequest, ChatResponse
-    └── document.py      DocumentUploadResponse, SearchRequest, SearchResponse
+    └── chat.py          ChatRequest, ChatResponse
 ```
 
-#### 4.2 关键设计
+#### 3.3 关键设计
 
-- **App 工厂**: `create_app()` 而非全局 `app`，方便测试
-- **DI**: 模块级 `global` 懒加载，首次请求才创建实例
-- **CORS**: 允许 Streamlit（8501）跨域
+- **App 工厂**: `create_app()` 而非全局 `app`
 - **异常映射**: AssistantBaseError 的 `status_code` → HTTP
-- **中间件**: 请求日志（method/path/status）
+- **CORS**: 允许 Streamlit（8501）跨域
+- **简化**: 不涉及服务层，Agent 路由 `await asyncio.to_thread(agent.run, ...)`
+- **不做**: AsyncBaseLLM、AsyncAgent ABC、AsyncReactAgent（V2 不需要两套 Agent）
 
-### Phase 5：VectorStore 单例 + Streamlit 瘦身
+### Phase 4：E2E 验证 + 文档更新
 
-#### 5.1 VectorStore 单例
-
-- **文件**: `src/retrieval/vector_store.py`
-- **改动**: 加 `get_vector_store()` 工厂，相同 (collection, persist) 返回同一实例
-- **embedding**: 全局变量懒加载（只下载一次模型）
-- **线程安全**: `add_documents` / `delete_collection` 加 `threading.Lock`
-- **兼容**: 构造函数不变，旧代码 `VectorStore(...)` 仍可用
-
-#### 5.2 Streamlit 瘦客户端
-
-- **文件**: `src/app/ui.py`
-- **改动**: 加 `USE_API` 环境开关
-  - `USE_API=true` → httpx 调 FastAPI（`POST /chat`、`POST /documents/upload`）
-  - `USE_API=false` → 直接用进程内 agent（开发模式）
-- **注意**: `asyncio.run()` 包装异步调用
-
-### Phase 6：测试 + CI
-
-#### 6.1 测试新增
-
-```
-tests/
-├── conftest.py              Mock AsyncOpenAI、TestClient、fixtures
-├── unit/test_exceptions.py  异常体系
-├── unit/test_retry.py       重试行为
-├── unit/test_logging.py     日志配置
-├── core/test_llm.py         AsyncBaseLLM + mock LLM
-├── core/test_agent.py       AsyncReactAgent + mock
-├── services/                服务层测试
-├── api/                     FastAPI TestClient 路由测试
-```
-
-#### 6.2 CI
-
-- **文件**: `.github/workflows/ci.yml`（新）
-- **步骤**: uv → Python 3.12 → 依赖 → ruff lint + format → pytest
-- **集成测试**: 仅在有 `LLM_API_KEY` secret 时运行
-
-### Phase 7：基础 RAG 改进（不依赖评测）
-
-肉眼可判断质量，不需要 QA 测试集。V2 间隙穿插，不阻塞主线。
-
-#### 7.1 文本噪声清理
-
-- **文件**: `src/ingestion/cleaner.py`（新）
-- **实现**: 一个函数 `clean_text(raw: str) -> str`
-- **规则**: 连续空行压缩（2+ → 1）、首尾空白修剪、特殊字符过滤（保留中文/英文/数字/常见标点）
-- **注意**: 不做 Processor 框架抽象，一个函数解决问题
-
-#### 7.2 递归分割
-
-- **文件**: `src/ingestion/chunker.py`（改进）
-- **改动**: 加 `recursive_split(text, chunk_size=500)` 函数
-- **规则**: 优先按 `\n\n` 分段落 → 段落太长按 `\n` 分句 → 最后按字符截断
-- **兼容**: 保留原有 `chunk_text()` 不动，新增函数可选使用
-
-#### 7.3 集成到 rag_tool
-
-- **文件**: `src/tools/impl/rag_tool.py`（改进）
-- **改动**: save 模式先 `clean_text()` 再 chunk，默认用 `recursive_split`
-
-### Phase 8：收尾验证 + 文档更新
-
-#### 8.1 E2E 全链路验证
+#### 4.1 全链路验证
 
 - **操作**: 启动 FastAPI + Streamlit，上传文档 → 对话 → 确认 Agent 正常回答
-- **验收**: V1 功能在 V2 架构下完整可用
+- **验收**: V1 功能在 V2 架构下完整可用，RAG 改进肉眼可感知
 
-#### 8.2 文档更新
+#### 4.2 文档更新
 
-- `README.md`: 更新启动方式（FastAPI + Streamlit 双进程模式）
-- `docs/decisions/`: 记录 Phase 1-8 的关键架构变更
+- `README.md`: 更新启动方式
+- `docs/decisions/`: 记录 V2 关键架构变更
+
+---
+
+### 增强路径（核心路径完成后，时间充裕再回补）
+
+#### 增强 1：服务层
+
+- **文件**: `src/services/document_service.py`、`src/services/agent_service.py`、`src/services/chat_service.py`
+- **内容**: 将 FastAPI 路由中的逻辑抽取为 Service 层，DocumentService 编排上传→入库，AgentService 管理 Agent 生命周期，ChatService 管理会话历史
+- **收益**: 路由更薄，业务逻辑可复用、可单独测
+
+#### 增强 2：VectorStore 单例 + Streamlit 瘦客户端
+
+- **文件**: `src/retrieval/vector_store.py`、`src/app/ui.py`
+- **内容**: `get_vector_store()` 单例工厂、线程安全、`USE_API` 开关
+- **收益**: Streamlit 通过 httpx 调 FastAPI，分离部署
+
+#### 增强 3：测试 + CI
+
+- **文件**: `tests/` 目录、`.github/workflows/ci.yml`
+- **内容**: Mock 测试、pytest-asyncio、TestClient 路由测试、GitHub Actions
+- **收益**: 自动化质量保障
 
 ### 启动方式
 
@@ -378,63 +325,50 @@ uv run pytest tests/unit tests/core tests/services tests/api -v
 
 ---
 
-## 第五阶段：V3 评估驱动 + RAG 优化级
+## 第五阶段：V3 实测驱动 + RAG 优化级
 
-### Phase 1：评测系统建立
+### 方法：问题驱动循环，不是指标驱动
 
-先有评测，再做优化。所有 RAG 优化必须可测量、可对比。
+```
+日常使用 → 收集问题（15-20 个回答不好的 query）
+    ↓
+定位最突出的 1 个瓶颈
+    ↓
+做一次针对性改动（只改一个变量）
+    ↓
+用同批问题重跑，肉眼对比
+    ↓
+重复直至收敛
+```
 
-#### 1.1 QA 测试集
+不预先搭建评测系统（标注成本被严重低估），不设预设优化顺序（瓶颈取决于实际使用）。
 
-- **文件**: `tests/eval/qa_dataset.json`（新）
-- **内容**: 50-100 条 `{query, expected_answer, source_doc}` 三元组
-- **来源**: 从实际使用的文档中人工标注
+### Phase 1：收集问题集
 
-#### 1.2 评测指标
+- **操作**: 日常使用中记录 Agent 回答不好的问题
+- **数量**: 15-20 条
+- **格式**: 自由文本，记下 query + 不满意的原因（"回答了但没有引用来源"、"检索出来的内容不对"等）
+- **不需要**: 标准答案、结构化标注、人工评分
 
-- **文件**: `src/evaluation/metrics.py`（新）
-- **指标**:
-  - `retrieval_recall@k` — 检索召回率
-  - `answer_faithfulness` — 答案忠实度（是否幻觉）
-  - `answer_completeness` — 答案完整性
-- **输出**: 评测报告（Markdown 表格，对比每次改动前后）
+### Phase 2：诊断 + 针对性优化
 
-#### 1.3 自动化评测 pipeline
+重复以下循环：
 
-- **文件**: `scripts/eval.py`（新）
-- **流程**: 跑测试集 → 收集指标 → 输出对比报告
+1. 用当前问题集跑一遍 Agent，记录表现
+2. 观察最明显的共性问题（召回差？chunk 切断语义？噪声干扰？）
+3. 针对该问题做一次改动
+4. 用同批问题再跑，对比改善程度
+5. 如果有效，保留改动；如果无效，回退
 
-### Phase 2：RAG 优化
+**可能触及的改动方向**（不做预设，诊断到哪改到哪）：
+- 递归分割 vs 固定分割对比
+- 噪声清理前后对比
+- embedding 模型替换实验
+- Rerank 两阶段检索
 
-每一项优化都在评测集上对比 before/after。
+### Phase 3：收敛判断
 
-#### 2.1 NoiseProcessor — 噪声清理
-
-- **文件**: `src/ingestion/processors/text_processor.py`（新）
-- **功能**: 页脚检测去除、连续空行压缩、特殊字符清理、多余空格整理
-- **验收**: 脏文本输入 → 干净文本输出
-
-#### 2.2 SmartChunker — 递归分割
-
-- **文件**: `src/ingestion/chunker.py`（改进）
-- **改动**: 加 `recursive_split(text, size=500)` 方法
-- **规则**: 优先按 `\n\n` 分段落 → 段落太长按 `\n` 分 → 最后才按字符截断
-- **验收**: chunk 边界落在自然断点，而非截断句子中间
-
-#### 2.3 Embedding 模型对比
-
-- **文件**: `src/retrieval/embedding.py`（新）
-- **对比**: 当前 SentenceTransformer auto-embed vs 千问 text-embedding-v3（API）
-- **验收**: 评测集上召回率对比
-
-#### 2.4 Rerank 两阶段检索
-
-- **文件**: `src/retrieval/reranker.py`（新）
-- **架构**: 阶段 1 向量检索 top-50 → 阶段 2 Rerank 重排 → 返回 top-4
-- **验收**: 相比纯向量检索，top-4 相关度明显提升
-
-#### 2.5 增强元数据
-
-- **文件**: `src/tools/impl/rag_tool.py`（改进）
-- **改动**: metadata 加 `page_number`、`section_title`、`chunk_type`
-- **验收**: 搜索结果可显示更详细的来源信息
+- **暂停条件**: 连续 2-3 轮改动后肉眼已无法感知改善
+- **后续选择**:
+  - 满足于当前质量，进入 V4
+  - 或如果仍有模糊的提升空间，此时再考虑建正式评测集做定量分析

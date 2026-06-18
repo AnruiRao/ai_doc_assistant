@@ -60,6 +60,29 @@ while steps < max_steps:
 - **V3**：加入 Tool 描述相似度 fallback，当精确匹配不到时尝试语义搜索工具描述
 - **V4**：支持 Tool 分组 + 权限控制，不同场景暴露不同工具集
 
+### Prompt 结构
+
+当前 Agent 的 system prompt 未显式写入文档，实际结构如下：
+
+```
+你是 AI 文档助手，使用中文回答问题。
+你有以下工具可用：
+- {tool_name}: {description}
+
+当你需要获取外部信息或执行计算时，使用对应的工具。
+如果你已经有足够的信息回答问题，直接回答，不要调用工具。
+```
+
+关键点：
+- Tool 描述通过 `to_openai_tool()` 自动转换为 OpenAI function calling schema，LLM 原生理解
+- LLM 的 tool choice 策略为 `auto`（默认），不由 Agent 端强制指定
+- "有足够信息就直接回答"是实际上的早停信号
+
+V2 可以考虑改进：
+- 显式化 prompt 模板，使其可配置
+- 加入 few-shot 示例，减少 LLM 选错工具的概率
+- 测试 `tool_choice="required"` 或 `tool_choice="none"` 对决策质量的影响
+
 ### Memory 策略
 
 当前是**全历史保留**：每次对话将全部 `session_state.messages` 传给 LLM。不做总结截断，不区分短期/长期记忆。
@@ -67,7 +90,20 @@ while steps < max_steps:
 注意：
 - 优点是实现简单，上下文完整
 - 缺点是 token 消耗随轮次线性增长，长对话 cost 高
-- V2-ChatService 提供 session 管理能力，但 memory 压缩策略留到 V4（引入 Redis 时一并实现）
+
+**V3 过渡方案（在评测系统就位前即可实现）**：
+```
+MAX_HISTORY_TURNS = 10  # 保留最近 10 轮对话
+
+def truncate_history(messages):
+    if len(messages) > MAX_HISTORY_TURNS * 2 + 1:  # +1 是 system prompt
+        # 保留 system prompt + 最近 MAX_HISTORY_TURNS 轮
+        return [messages[0]] + messages[-(MAX_HISTORY_TURNS * 2):]
+    return messages
+```
+- 简单截断，不做 summarization
+- 10 轮的 token 消耗可控（约 3-5k tokens，取决于工具调用频率）
+- V4 引入 Redis 时才做智能 summarization
 
 ### 循环终止条件
 
@@ -87,6 +123,15 @@ raise AgentError("max_steps 超限")  # 超限 → 异常
 两个终止信号：
 1. **正常终止**：LLM 返回的内容中没有 `tool_calls` → 视为最终回答
 2. **异常终止**：循环次数达到 `max_steps`（当前 V1 写死 10 次）→ 抛 `AgentError`
+
+**实际上的早停机制**（已存在于 prompt 中）：
+- system prompt 写了"如果有足够信息就直接回答"
+- LLM 可能在 1 次工具调用后自行决定停止
+- 这不是代码层面的强制早停，而是 LLM 的自主决策
+
+V3 可验证的改进：
+- 测试不同 `max_steps`（5/10/15）对回答质量的影响
+- 观察 LLM 是否真的会在 1-2 步后自行停止，还是倾向于用完所有步骤
 
 不支持的终止模式（V4 后考虑）：
 - Token 预算终止（到量截断返回已有内容）

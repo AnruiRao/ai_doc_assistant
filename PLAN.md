@@ -102,70 +102,71 @@ src/
 
 验收：上传文档 → 检索 → Agent 回答，全链路跑通
 
-### V2 — 工程化级（预计 2 周，每日 2-3h）
+### V2 — 工程化级
 
-**Phase 1：基础设施**
+**核心路径（按顺序做完即可验收）**
+
+**Phase 1：基础设施 ✅ 已完成**
 - 更新依赖（fastapi、uvicorn、httpx、tenacity、structlog）
 - 异常体系树形化（`AssistantBaseError` → LLMError/AgentError/RetrievalError...）
 - tenacity 重试（指数退避，区分可重试 vs 不可重试）
 - structlog 结构化日志
 
-**Phase 2：异步化**
-- `AsyncBaseLLM` 包装 `AsyncOpenAI`，异常映射，`@llm_retry`
-- `AsyncAgent` ABC 基类 + `AsyncReactAgent`
-- Tool 保持同步，`asyncio.to_thread()` 桥接
-
-**Phase 3：服务层**
-- `DocumentService`（上传→切分→入库编排）
-- `AgentService`（Agent 生命周期管理）
-- `ChatService`（会话历史管理）
-
-**Phase 4：FastAPI 应用**
-- REST API（`POST /chat`、`POST /documents/upload`、`GET /health`）
-- App 工厂模式 + DI 懒加载单例
-- CORS + 异常→HTTP 状态码映射 + 请求日志中间件
-
-**Phase 5：VectorStore 单例 + Streamlit 瘦身**
-- `get_vector_store()` 单例工厂，embedding 模型全局懒加载
-- 线程安全写入（`threading.Lock`）
-- Streamlit 加 `USE_API` 开关，通过 httpx 调 FastAPI
-
-**Phase 6：测试 + CI**
-- Mock 测试（异常/重试/LLM/Agent）+ API 路由测试（TestClient）
-- Ruff lint + format + GitHub Actions
-
-**Phase 7：基础 RAG 改进（V2 间隙穿插）**
+**Phase 2：基础 RAG 改进（能力优先）**
 - 文本噪声清理（空行压缩、特殊字符过滤）
-- 递归分割（优先段落边界切分，不改变原有固定切分）
+- 递归分割（优先段落边界切分，而非固定字符）
 - 集成到 rag_tool save 流程
-- 不引入新依赖，一个函数解决问题，不做框架抽象
+- 不引入新依赖，一个函数解决问题
 
-**Phase 8：收尾验证 + 文档更新**
-- E2E 全链路验证（FastAPI + Streamlit 双进程）
+**Phase 3：FastAPI + 异步桥接**
+- FastAPI 路由（`POST /chat`、`GET /health`）
+- App 工厂模式 + 异常→HTTP 状态码映射
+- `asyncio.to_thread()` 调 sync Agent，不做 AsyncBaseLLM/AsyncAgent
+
+**Phase 4：E2E 验证 + 文档更新**
+- 全链路验证（FastAPI + Streamlit 双进程）
 - README 更新、决策记录补充
 
-> **V2 → V3 承上启下**：V2 搭建的 AsyncBaseLLM 支持快速切换 embedding 模型，VectorStore 单例方便替换检索后端，服务层为 Rerank 预留了接口。V2 搭好实验台，V3 跑实验。
+**增强路径（核心路径完成后，时间充裕再回补）**
+
+- **服务层**：DocumentService、AgentService、ChatService
+- **VectorStore 单例 + Streamlit 瘦身**：get_vector_store() 工厂、USE_API 开关
+- **测试 + CI**：Mock 测试、pytest-asyncio、GitHub Actions
+
+> **V2 → V3 承上启下**：V2 的 FastAPI 作为实验调用入口，Process agent 层为 RAG 实验提供接口。V3 的实测优化直接复用这套架构。
 
 详细实施计划见 `.claude/plans/scalable-honking-popcorn.md`。
 
-### V3 — 评估驱动 + RAG 优化级（+3-4 周）
+### V3 — 实测驱动 + RAG 优化级（+3-4 周）
 
-**评估系统（驱动决策）**
-- 构建高质量 QA 测试集（50-100 条领域标注）
-- 准确率、召回率、忠实度、答案完整性指标
-- 自动化评测 pipeline
-- 链路追踪（trace 每个请求的输入→检索→输出）
-- 用户反馈系统
+**核心方法：问题驱动，而不是指标驱动**
 
-**RAG 优化（由评测数据驱动）**
-- 噪声处理器（页脚去除、空行压缩、乱码清理）
-- SmartChunker 递归分割（段落优先切分，而非固定字符）
-- 对比不同 chunk_size、chunk_overlap 对召回率的影响
-- 对比 auto-embed（SentenceTransformer）与 API-based embedding（千问 text-embedding-v3）
-- Rerank 两阶段检索（向量检索 → 重排序）
-- 增强元数据（页码、章节标题、chunk_type），提升可追溯性
+不预先搭建评测系统。V3 的流程是循环式的：
 
-> 核心规则：**先有评测，再做优化**。每一项改动都在评测集上对比 before/after，用数据说话。
+```
+实际使用 → 记下回答不好的问题（15-20个）
+    ↓
+分析最突出的短板（召回差？幻觉？切分不合理？）
+    ↓
+做一次针对性改动（只改一个变量）
+    ↓
+用同样的问题重跑，肉眼对比改善
+    ↓
+重复
+```
+
+**为什么这么做？**
+- 标注 50-100 条 QA 数据的成本被严重低估（实际 5-8 小时纯人工）
+- 大多数 RAG 问题的瓶颈只有 1-2 个，不需要全面评测就能找到
+- 自动评测 pipeline 在优化稳定前是过度工程化
+
+**可能涉及的方向（依实际瓶颈而定）**
+- 递归分割对比固定切分，看 chunk 质量变化
+- 噪声清理前后对比
+- embedding 模型替换实验
+- Rerank 两阶段检索
+
+> 不预设优化顺序。每一次改动都用"同一批问题跑 two 遍"来验证效果。当改不动了（瓶颈收敛），再考虑是否需要建正式评测集。
 
 ### V4 — 生产化级（+3-4 周）
 
