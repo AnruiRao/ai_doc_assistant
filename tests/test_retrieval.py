@@ -5,6 +5,7 @@ from pypdf import PdfWriter
 from pypdf.generic import DictionaryObject, NameObject, DecodedStreamObject
 from ingestion.loader import load_document, load_text, load_pdf
 from ingestion.chunker import Chunker
+from ingestion.cleaner import clean_text
 from retrieval.vector_store import VectorStore
 
 
@@ -189,3 +190,29 @@ class TestVectorStore:
         )
         assert vs2.count() == 0
         vs2.delete_collection()
+
+
+class TestCleaner:
+    def test_empty_string(self):
+        assert clean_text("") == ""
+
+    def test_whitespace_trim(self):
+        assert clean_text("  hello  ") == "hello"
+
+    def test_consecutive_blank_lines(self):
+        assert clean_text("a\n\n\n\nb") == "a\n\nb"
+
+    def test_special_chars_filtered(self):
+        assert clean_text("hello★test") == "hellotest"
+
+    def test_chinese_preserved(self):
+        assert clean_text("你好，世界！") == "你好，世界！"
+
+    def test_normal_text_unchanged(self):
+        assert clean_text("Hello World") == "Hello World"
+
+    def test_full_width_space(self):
+        assert clean_text("hello　world") == "hello world"
+
+    def test_full_pipeline(self):
+        assert clean_text("  \n\n\nfoo\n\n\n\nbar  ") == "foo\n\nbar"
