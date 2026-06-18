@@ -22,3 +22,5 @@ data/docs/*.txt
 
 # Claude
 CLAUDE.md
+
+rag-optimization-analysis.md
