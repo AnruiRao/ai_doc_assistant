@@ -2,7 +2,7 @@
 
 ## 项目定位
 
-一个带 RAG 能力的 AI Agent 助手，作为大模型应用开发的练手项目和面试作品。
+一个带 RAG 能力的 AI Agent 助手，作为大模型应用开发的学习项目，逐步靠近生产级产品。
 
 ## 技术选型
 
@@ -11,8 +11,8 @@
 | 语言 | Python 3.12+ | LLM 生态首选 |
 | API 协议 | OpenAI 兼容 | 通用生态，岗位最多 |
 | LLM SDK | OpenAI Python SDK | 直接对接，透明可控 |
-| Agent | 自实现 ReAct | 面试核心亮点 |
-| RAG pipeline | 自实现 | 面试核心亮点 |
+| Agent | 自实现 ReAct | 核心亮点 |
+| RAG pipeline | 自实现 | 核心亮点 |
 | 向量库 | Chroma | 本地运行，零配置 |
 | 文档解析 | pypdf | 轻量 |
 | 前端 | Streamlit | 最快出界面 |
@@ -23,18 +23,13 @@
 **V1-V3：核心逻辑自实现**（ReAct、RAG pipeline），不依赖 LangChain/LlamaIndex。
 
 理由：
-- 自己做一遍才能讲清原理，面试不只是问"怎么用的"，更多是问底层实现
+- 自己实现一遍才能真正理解底层原理，而不仅是 API 调用
 - 自己能控制 prompt、tool_calls 流程，调试更容易
 - LangChain 迭代快，API 不稳定，学它不如学底层原理
 
-**V4 之后：引入 LangChain 适配层**，展示对框架的理解。
+**V4 之后：引入 LangChain 适配层**，做对比实现。
 
-具体做法：在 `src/vendor/` 下加适配器，将自实现模块与 LangChain 组件做对比，或直接在部分链路替换为 LangChain。
-
-面试话术参考：
-> "Agent 核心是我自实现的 ReAct 循环，LangChain 的 AgentExecutor 也是这个思路。我选择自实现是为了完全控制 prompt 和工具调用流程，后续迁移到 LangGraph 也很直接。"
-
-这样既展示了原理深度，又证明了框架能力，效果最好。
+具体做法：在 `src/vendor/` 下加适配器，将自实现模块与 LangChain 组件做对比，或直接在部分链路替换为 LangChain。这样既展现原理深度，又证明框架迁移能力。
 
 ### 国产模型
 
@@ -107,22 +102,70 @@ src/
 
 验收：上传文档 → 检索 → Agent 回答，全链路跑通
 
-### V2 — 工程化级（+3-4 周）
+### V2 — 工程化级（预计 2 周，每日 2-3h）
 
-- FastAPI 分层架构，模块解耦
-- 异步处理
-- 类型注解 + Pydantic 全链路校验
-- 完善的错误处理 + 重试机制
-- 日志
-- pytest 测试 + 基础 CI
+**Phase 1：基础设施**
+- 更新依赖（fastapi、uvicorn、httpx、tenacity、structlog）
+- 异常体系树形化（`AssistantBaseError` → LLMError/AgentError/RetrievalError...）
+- tenacity 重试（指数退避，区分可重试 vs 不可重试）
+- structlog 结构化日志
 
-### V3 — 评估驱动级（+3-4 周）
+**Phase 2：异步化**
+- `AsyncBaseLLM` 包装 `AsyncOpenAI`，异常映射，`@llm_retry`
+- `AsyncAgent` ABC 基类 + `AsyncReactAgent`
+- Tool 保持同步，`asyncio.to_thread()` 桥接
 
+**Phase 3：服务层**
+- `DocumentService`（上传→切分→入库编排）
+- `AgentService`（Agent 生命周期管理）
+- `ChatService`（会话历史管理）
+
+**Phase 4：FastAPI 应用**
+- REST API（`POST /chat`、`POST /documents/upload`、`GET /health`）
+- App 工厂模式 + DI 懒加载单例
+- CORS + 异常→HTTP 状态码映射 + 请求日志中间件
+
+**Phase 5：VectorStore 单例 + Streamlit 瘦身**
+- `get_vector_store()` 单例工厂，embedding 模型全局懒加载
+- 线程安全写入（`threading.Lock`）
+- Streamlit 加 `USE_API` 开关，通过 httpx 调 FastAPI
+
+**Phase 6：测试 + CI**
+- Mock 测试（异常/重试/LLM/Agent）+ API 路由测试（TestClient）
+- Ruff lint + format + GitHub Actions
+
+**Phase 7：基础 RAG 改进（V2 间隙穿插）**
+- 文本噪声清理（空行压缩、特殊字符过滤）
+- 递归分割（优先段落边界切分，不改变原有固定切分）
+- 集成到 rag_tool save 流程
+- 不引入新依赖，一个函数解决问题，不做框架抽象
+
+**Phase 8：收尾验证 + 文档更新**
+- E2E 全链路验证（FastAPI + Streamlit 双进程）
+- README 更新、决策记录补充
+
+> **V2 → V3 承上启下**：V2 搭建的 AsyncBaseLLM 支持快速切换 embedding 模型，VectorStore 单例方便替换检索后端，服务层为 Rerank 预留了接口。V2 搭好实验台，V3 跑实验。
+
+详细实施计划见 `.claude/plans/scalable-honking-popcorn.md`。
+
+### V3 — 评估驱动 + RAG 优化级（+3-4 周）
+
+**评估系统（驱动决策）**
 - 构建高质量 QA 测试集（50-100 条领域标注）
 - 准确率、召回率、忠实度、答案完整性指标
 - 自动化评测 pipeline
 - 链路追踪（trace 每个请求的输入→检索→输出）
 - 用户反馈系统
+
+**RAG 优化（由评测数据驱动）**
+- 噪声处理器（页脚去除、空行压缩、乱码清理）
+- SmartChunker 递归分割（段落优先切分，而非固定字符）
+- 对比不同 chunk_size、chunk_overlap 对召回率的影响
+- 对比 auto-embed（SentenceTransformer）与 API-based embedding（千问 text-embedding-v3）
+- Rerank 两阶段检索（向量检索 → 重排序）
+- 增强元数据（页码、章节标题、chunk_type），提升可追溯性
+
+> 核心规则：**先有评测，再做优化**。每一项改动都在评测集上对比 before/after，用数据说话。
 
 ### V4 — 生产化级（+3-4 周）
 
@@ -145,28 +188,11 @@ src/
 
 ---
 
-## 面试竞争力分析
-
-| 级别 | 面试竞争力 | 说明 |
-|---|---|---|
-| V1 Demo 级 | ❌ 不够 | 纯流程跑通，简历上不够看 |
-| V2 工程化级 | ⚠️ 勉强能过简历关 | 超过 70% 面试者 |
-| **V3 评估驱动级** | **✅ 基本保险线** | 有数据意识，面试有底气聊 |
-| V4 生产化级 | ✅✅ 优势线 | 能覆盖大部分中小厂要求 |
-
-对 2 年 gap 期，V3 是最低保险线。按每天 2-3 小时，约 2 个月可达到 V3。
-
----
-
 ## 当前进度
 
-**第一阶段（Agent 核心）已完成** ✅
-**第二阶段（RAG 检索）已完成** ✅ — 详见 TASKS.md。
-**任务 8（RAG Tool）已完成** ✅ — V1 版本实现完成，修复了 ID 碰撞、改为 UUID 策略、新增 metadata 来源追溯 + delete 模式。
-**任务 9（Streamlit UI）已完成** ✅ — 侧边栏上传 + 聊天对话 + Agent 记忆。
-**任务 10（全链路验证）已完成** ✅ — 上传 → 检索 → Agent 回答，全链路跑通。
+**V1 Demo 阶段已全部完成** ✅ — Agent 核心 + RAG 检索 + Streamlit UI + 全链路验证。
 
-**V1 Demo 阶段已全部完成。** 下一步：V2 工程化级。
+**当前：V2 工程化级（进行中）** — 见上方详细计划，预计 2 周。
 
 ---
 
@@ -205,9 +231,9 @@ RAG Tool 的核心问题是：**多次保存文档时如何避免 Chroma 的 ID 
 
 ## 为什么会做这个项目
 
-用户是 2024 年毕业、有 2 年 gap 期的求职者，正在学习大模型应用开发。需要通过一个项目来：
+正在学习大模型应用开发，需要通过一个项目来：
 1. 边学边练，把学到的知识落地
-2. 作为面试作品，展示技术能力
+2. 从简单开始，逐步迭代到接近生产水平的系统
 
 ## 选型过程
 
@@ -217,8 +243,8 @@ RAG Tool 的核心问题是：**多次保存文档时如何避免 Chroma 的 ID 
 
 | 方向 | 考虑 | 结论 |
 |---|---|---|
-| AI 知识库助手（RAG） | 面试必考，场景真实 | ✅ 作为基础能力 |
-| AI Agent 助手 | 2025-2026 最热面试话题 | ✅ 作为核心架构 |
+| AI 知识库助手（RAG） | 真实场景，技术覆盖广 | ✅ 作为基础能力 |
+| AI Agent 助手 | 当前热门架构方向 | ✅ 作为核心架构 |
 | LLM API 统一网关 | 偏 infra | ❌ 暂不选择 |
 
 最终选择 **RAG + Agent 合体**。理由：Agent 做推理规划，RAG 提供知识支撑，真实企业应用基本都是合体架构。
@@ -226,16 +252,13 @@ RAG Tool 的核心问题是：**多次保存文档时如何避免 Chroma 的 ID 
 ### 垂直领域 vs 通用
 
 最初犹豫是否做垂直领域。最终选择 **技术文档助手** 作为领域：
-- 垂直领域面试有区分度
 - 开发者理解开发者需求，不用额外学行业知识
 - 数据好获取（GitHub 开源项目文档）
-- 面试时可以说"我自己的学习资料就是从这个系统学的"
 
 ### 技术路线
 
 在 Claude API 生态和 OpenAI 通用生态之间选择 **OpenAI 协议（千问）**：
 - 通用协议，兼容更多模型和框架
-- 市场需求更大
 - 用户可以切换到不同国产模型
 
 ### 学科知识点
@@ -251,12 +274,4 @@ RAG Tool 的核心问题是：**多次保存文档时如何避免 Chroma 的 ID 
 
 ### 关于框架（LangChain / LlamaIndex）
 
-早期核心逻辑自实现（ReAct、RAG pipeline），展示对底层原理的理解。
-
-V4 之后加入框架适配层，对比自实现和框架方案的差异，展示框架能力。
-
-面试时可以这么说：
-
-> "Agent 核心是我自实现的 ReAct 循环。LangChain 的 AgentExecutor 也是同样思路，但我选择自实现是为了精确控制 prompt 和 tool_calls 流程，同时也更清楚每一步做了什么。后续如果要接复杂编排，迁移到 LangGraph 也很直接。"
-
-这样既有深度（自实现），又有广度（框架认知），面试效果最好。
+早期核心逻辑自实现（ReAct、RAG pipeline），深入理解底层原理。V4 之后加入框架适配层，对比自实现和框架方案的差异。

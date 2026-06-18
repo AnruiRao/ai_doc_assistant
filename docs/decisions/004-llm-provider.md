@@ -31,7 +31,7 @@
 
 3. **SDK 选型**：OpenAI Python SDK。原因：
    - 协议兼容，不需要额外依赖
-   - 文档丰富，面试时通用
+   - 文档丰富，生态完善
    - 对比使用 dashscope SDK，"用 OpenAI SDK 调千问"展示了协议理解
 
 ## 实现方式

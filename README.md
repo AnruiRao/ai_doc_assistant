@@ -1,6 +1,6 @@
 # AI 文档助手
 
-基于自实现 RAG + ReAct Agent 的智能文档问答系统。面试作品项目。
+基于自实现 RAG + ReAct Agent 的智能文档问答系统。
 
 ## 功能
 

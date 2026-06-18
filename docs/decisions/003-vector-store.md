@@ -24,7 +24,7 @@
 2. **本地持久化**：`PersistentClient` 数据存本地磁盘，重启不丢失
 3. **内置 embedding**：auto-embed 简化 V1 流程，不用手动管理 embedding 调用
 4. **API 简洁**：基本操作（add / query / count / delete）几行代码搞定
-5. **学习成本低**：面试场景下，Chroma 是"至少听过"的入门方案
+5. **学习成本低**：Chroma 是入门门槛最低的方案
 
 ### 放弃 FAISS 的理由
 

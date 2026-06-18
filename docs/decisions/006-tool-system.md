@@ -33,7 +33,7 @@ class CalculatorTool(Tool):
 当前方式的好处：
 1. **显式理解**：`to_openai_tool()` 生成 schema 的过程是手写的，开发者能看到 tool schema 长什么样
 2. **类型清晰**：通过 `input_model`（Pydantic）把输入校验和 schema 生成合二为一
-3. **面试可讲**：可以说"我知道 LangChain 的 @tool 装饰器本质上也是解析函数签名 + 类型注解 → Pydantic schema，我手写的版本是同一件事"
+3. **原理理解**：可以后续对比 LangChain 的 @tool 装饰器（本质上也是解析函数签名 + 类型注解 → Pydantic schema），理解两者异同
 
 ## 后续计划
 
