@@ -1,5 +1,38 @@
 # AI 文档助手 — 项目规划
 
+## 快速定位（30 秒了解）
+
+### 这是什么？
+RAG + 自实现 ReAct Agent 的智能文档问答系统。从 Demo 逐步演进到生产级产品。
+
+### 现在在哪？
+- ✅ **V1 完成** — Agent 核心 + RAG 检索 + Streamlit UI 全链路跑通
+- 🟢 **V2 Phase 2 完成** — 噪声清理、递归分割、集成到 rag_tool
+- 🔴 **V3 计划中** — 实测驱动的 RAG 优化（chunk、embedding、rerank）
+
+### 快速上手
+```bash
+cp .env.example .env && uv sync
+uv run streamlit run src/app/ui.py          # 启动 UI
+uv run pytest tests/ -v                     # 跑测试
+```
+
+### 代码速览
+```
+src/ingestion/  文档加载+切分+清理     src/retrieval/  向量库 (Chroma)
+src/agents/     ReAct 循环             src/tools/      工具系统
+src/api/        FastAPI 路由           src/app/        Streamlit UI
+docs/decisions/ 架构决策记录
+```
+
+### 想看什么？
+- 架构 → `src/core/agent.py`
+- 加 Tool → 继承 `src/tools/base.py` 的 `Tool`
+- 改 RAG → `src/retrieval/vector_store.py` 或 `src/ingestion/chunker.py`
+- 决策 → `docs/decisions/`
+
+---
+
 ## 项目定位
 
 一个带 RAG 能力的 AI Agent 助手，作为大模型应用开发的学习项目，逐步靠近生产级产品。
@@ -160,13 +193,47 @@ src/
 - 大多数 RAG 问题的瓶颈只有 1-2 个，不需要全面评测就能找到
 - 自动评测 pipeline 在优化稳定前是过度工程化
 
-**可能涉及的方向（依实际瓶颈而定）**
-- 递归分割对比固定切分，看 chunk 质量变化
-- 噪声清理前后对比
-- embedding 模型替换实验
-- Rerank 两阶段检索
+**可能涉及的方向（依实际瓶颈而定，一次只改一个变量）**
 
-> 不预设优化顺序。每一次改动都用"同一批问题跑 two 遍"来验证效果。当改不动了（瓶颈收敛），再考虑是否需要建正式评测集。
+每次改前先用"同一批问题跑两遍"确认效果，有效保留、无效回退。
+
+### 可选操作清单
+
+**A. 检索质量**
+
+| 操作 | 解决问题 | 复杂度 |
+|------|---------|--------|
+| 换 embedding 模型（bge / text-embedding-3） | 语义理解不够好 | ★ 一行配置 |
+| 加 reranker（cross-encoder / bge-reranker） | 检索结果前几名不相关 | ★★ 新增一个类 |
+| Hybrid search（向量 + BM25） | 精确关键词匹配不到 | ★★★ 新增检索路径 |
+| 显式 cosine similarity 控制 | 距离度量不明确 | ★ 数值计算 |
+
+**B. 查询优化**
+
+| 操作 | 解决问题 | 复杂度 |
+|------|---------|--------|
+| Query rewrite（LLM 改写用户问题） | 用户问得模糊 | ★ 一个 prompt |
+| Multi-query（多问法扩展后合并结果） | 单一问法覆盖不全 | ★★ 多路查询 |
+| HyDE（先生成假答案，再用假答案检索） | query-chunk 语义 gap 大 | ★★ 生成+检索两阶段 |
+
+**C. 文档预处理**
+
+| 操作 | 解决问题 | 复杂度 |
+|------|---------|--------|
+| 文档去重（内容哈希 ID） | 重复文档污染检索 | ★ ID 策略替换 |
+| Metadata 增强（标题/章节路径解析） | 检索结果缺少上下文 | ★★ 依赖文档结构解析 |
+| MMR 去冗余 | top-k 结果太相似 | ★★ 一个算法函数 |
+| Sliding window context（返回相邻 chunk） | 单 chunk 信息不全 | ★ 返回时扩展 |
+
+**D. 策略调参**
+
+| 操作 | 解决问题 | 复杂度 |
+|------|---------|--------|
+| top-k 调优（5→10→20） | top-k 太小漏结果 | ★ 一个参数 |
+| chunk_size 对比实验 | chunk 太大/太小 | ★ 一个参数 |
+| 分割策略对比（固定 vs 递归） | chunk 边界切断语义 | ★ 换函数名 |
+
+> 不预设优化顺序。每一次改动只用"同一批问题跑两遍"来验证效果。当连续 2-3 轮改动后肉眼已无法感知改善（瓶颈收敛），再考虑是否需要建正式评测集做定量分析。
 
 ### V4 — 生产化级（+3-4 周）
 
@@ -195,7 +262,11 @@ src/
 
 **V1 Demo 阶段已全部完成** ✅ — Agent 核心 + RAG 检索 + Streamlit UI + 全链路验证。
 
-**当前：V2 工程化级（进行中）** — 见上方详细计划，预计 2 周。
+**V2 工程化级（进行中）**
+- Phase 1（基础设施：异常、重试、日志）✅
+- Phase 2（RAG 基础优化：噪声清理、递归分割、集成到 rag_tool）✅
+- Phase 3（FastAPI + 异步桥接）🔴 待开始
+- Phase 4（E2E 验证 + 文档更新）🔴 待开始
 
 ---
 

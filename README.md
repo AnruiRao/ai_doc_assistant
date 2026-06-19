@@ -4,10 +4,33 @@
 
 ## 功能
 
-- 上传 `.txt` / `.pdf` 文档 → 自动切分 → 向量化存储
-- 对话式提问 → Agent 自主检索相关内容 → LLM 合成回答
-- 聊天上下文记忆（支持多轮对话）
-- 内置计算器工具（Agent 自动决定是否调用）
+### ✅ V1 Demo（已完成，当前可用）
+- [x] 上传文档（.txt / .pdf）
+- [x] 文档自动切分 + Chroma 向量化存储
+- [x] 语义检索（cosine similarity，top-k 可配）
+- [x] ReAct Agent 对话（思考→行动→观察循环）
+- [x] 工具调用（计算器、RAG 知识库）
+- [x] 聊天上下文记忆（多轮对话）
+- [x] 文档清理（空行压缩、特殊字符过滤）— Phase 2.1
+- [x] 递归分割（按段落→句子→字符优先级）— Phase 2.2
+- [x] RAG 工具集成（save 前自动 clean + 递归切分）— Phase 2.3
+- [x] Streamlit Web UI
+
+### 🟢 V2 工程化（进行中，Phase 3 待开始）
+- [x] 异常体系（树形结构，可重试 vs 不可重试）
+- [x] 重试机制（tenacity 指数退避）
+- [x] 结构化日志（structlog，开发彩显 + 生产 JSON）
+- [x] 文本噪声清理 + 递归分割（Phase 2 完成）
+- [ ] FastAPI REST API（`POST /chat`, `GET /health`）
+- [ ] 异步 Agent 桥接（asyncio.to_thread）
+- [ ] 自动化测试（目标 31+ 用例）
+- [ ] API 跨域支持（Streamlit + FastAPI 双进程）
+
+### 🔴 V3 实测驱动 RAG 优化（计划中）
+- [ ] QA 评测集 + 指标系统
+- [ ] Embedding 模型对比
+- [ ] Reranker 两阶段检索
+- [ ] Query rewrite / HyDE 等查询优化
 
 ## 快速开始
 
@@ -59,8 +82,8 @@ src/
 ## 发展阶段
 
 - **V1 ✅** Demo 级 — Agent 核心 + RAG 检索 + Streamlit UI 全链路跑通
-- **V2 ✅ 进行中** 工程化级 — 异常体系、重试、日志、RAG 基础优化、FastAPI 服务化
-- **V3** 实测驱动级 — 真实问题驱动 RAG 优化（chunk、embedding、rerank）
+- **V2 🟢 进行中** — Phase 2（RAG 基础优化）已完成，Phase 3（FastAPI + 异步）待开始
+- **V3 🔴 计划中** — 实测驱动的 RAG 优化（chunk、embedding、rerank、query rewrite）
 - **V4** 生产化级 — Docker + 多用户 + 流式输出
 
 详见 `PLAN.md` 和 `TASKS.md`。
