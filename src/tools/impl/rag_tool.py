@@ -3,6 +3,7 @@ from tools.base import Tool
 from pydantic import BaseModel, Field
 from typing import Literal
 from ingestion.loader import load_document
+from ingestion.cleaner import clean_text
 from ingestion.chunker import Chunker
 from retrieval.vector_store import VectorStore
 
@@ -43,8 +44,9 @@ class RagTool(Tool):
                 return "错误：save 模式需要提供 path 参数"
 
             text = load_document(path)
+            text = clean_text(text)
             chunker = Chunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-            chunks = chunker.chunk_text(text)
+            chunks = chunker.recursive_split(text, chunk_size=chunk_size)
 
             ids = [str(uuid4()) for _ in chunks]
             metadatas = [{"source": path, "chunk_index": i} for i in range(len(chunks))]

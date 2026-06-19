@@ -244,7 +244,7 @@ config → tools → react_agent ─┐
 - **兼容**: 保留原有 `chunk_text()` 不动
 - **测试**: `TestRecursiveSplit` 6 个用例（空文本、短文本、多段落、长段落按行切、超长行硬切、混合场景）
 
-#### 2.3 集成到 rag_tool
+#### 2.3 集成到 rag_tool ✅
 
 - **文件**: `src/tools/impl/rag_tool.py`（改进）
 - **改动**: save 模式先 `clean_text()` 再 chunk，默认用 `recursive_split`
