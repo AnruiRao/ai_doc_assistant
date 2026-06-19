@@ -132,6 +132,40 @@ class TestChunker:
         assert chunks[2] == "ghij"
 
 
+class TestRecursiveSplit:
+    def test_empty_text(self):
+        assert Chunker().recursive_split("") == []
+
+    def test_short_text(self):
+        assert Chunker().recursive_split("hello", 500) == ["hello"]
+
+    def test_multiple_short_paragraphs(self):
+        c = Chunker()
+        r = c.recursive_split("aaa\n\nbbb\n\nccc", 500)
+        assert r == ["aaa", "bbb", "ccc"]
+
+    def test_long_paragraph_split_by_lines(self):
+        c = Chunker()
+        text = "line1\nline2\nline3\nline4\nline5\nline6"
+        r = c.recursive_split(text, 15)
+        assert all(len(chunk) <= 15 for chunk in r)
+        assert len(r) >= 2
+
+    def test_single_long_line_hard_cut(self):
+        c = Chunker()
+        r = c.recursive_split("x" * 1000, 100)
+        assert len(r) == 10
+        assert all(len(chunk) == 100 for chunk in r)
+
+    def test_mixed_scenario(self):
+        c = Chunker()
+        text = "short\n\n" + "\n".join(["a line"] * 90) + "\n\nend"
+        r = c.recursive_split(text, 50)
+        assert r[0] == "short"
+        assert r[-1] == "end"
+        assert all(chunk for chunk in r)
+
+
 class TestVectorStore:
     def test_add_and_search(self, tmp_path):
         persist_dir = str(tmp_path / "chroma")

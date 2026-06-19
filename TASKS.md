@@ -236,12 +236,13 @@ config → tools → react_agent ─┐
 - **注意**: 不做 Processor 框架抽象
 - **测试**: `TestCleaner` 8 个用例（空文本、首尾空白、连续空行、特殊字符、中文保留、全角空格、完整流程）
 
-#### 2.2 递归分割
+#### 2.2 递归分割 ✅
 
 - **文件**: `src/ingestion/chunker.py`（改进）
 - **改动**: 加 `recursive_split(text, chunk_size=500)` 函数
 - **规则**: 优先按 `\n\n` 分段落 → 段落太长按 `\n` 分句 → 最后按字符截断
 - **兼容**: 保留原有 `chunk_text()` 不动
+- **测试**: `TestRecursiveSplit` 6 个用例（空文本、短文本、多段落、长段落按行切、超长行硬切、混合场景）
 
 #### 2.3 集成到 rag_tool
 
