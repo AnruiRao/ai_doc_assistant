@@ -16,6 +16,7 @@
 | 004 | [LLM 供应商和 API 协议](004-llm-provider.md) | 已实施 |
 | 005 | [Agent 模式选型](005-agent-pattern.md) | 已实施 |
 | 006 | [工具系统设计](006-tool-system.md) | 已实施 |
+| 007 | [FastAPI + 异步桥接架构](007-fastapi-async.md) | 已实施 |
 
 ## 规范
 

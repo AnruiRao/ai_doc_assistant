@@ -307,17 +307,23 @@ curl -X POST localhost:8000/chat \  # 验证聊天
   -d '{"input_text":"你好","history":[]}'
 ```
 
-### Phase 4：E2E 验证 + 文档更新 🟢 待开始
+### Phase 4：E2E 验证 + 文档更新 ✅ 已完成
 
-#### 4.1 全链路验证
+#### 4.1 全链路验证 ✅
 
 - **操作**: 启动 FastAPI + Streamlit，上传文档 → 对话 → 确认 Agent 正常回答
 - **验收**: V1 功能在 V2 架构下完整可用，RAG 改进肉眼可感知
+- **验证结果**:
+  - `GET /health` → `{"status":"ok"}` ✅
+  - `POST /chat` → Agent 正常回答 ✅
+  - RAG save + search 全链路 via API ✅
+  - Streamlit UI 正常启动 ✅
 
-#### 4.2 文档更新
+#### 4.2 文档更新 ✅
 
-- `README.md`: 更新启动方式
-- `docs/decisions/`: 记录 V2 关键架构变更
+- `README.md`: V2 标记为已完成，添加增强路径状态
+- `PLAN.md` / `TASKS.md`: 状态同步更新
+- `docs/decisions/README.md`: 索引补充 007
 
 ---
 

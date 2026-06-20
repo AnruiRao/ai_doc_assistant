@@ -16,7 +16,7 @@
 - [x] RAG 工具集成（save 前自动 clean + 递归切分）— Phase 2.3
 - [x] Streamlit Web UI
 
-### 🟢 V2 工程化（进行中，Phase 4 待开始）
+### ✅ V2 工程化（核心路径已完成）
 - [x] 异常体系（树形结构，可重试 vs 不可重试）
 - [x] 重试机制（tenacity 指数退避）
 - [x] 结构化日志（structlog，开发彩显 + 生产 JSON）
@@ -24,7 +24,8 @@
 - [x] FastAPI REST API（`POST /chat`, `GET /health`）
 - [x] 异步 Agent 桥接（asyncio.to_thread）
 - [x] API 跨域支持（Streamlit + FastAPI 双进程）
-- [ ] 自动化测试（目标 31+ 用例）
+- [x] 全链路验证通过（API ↔ RAG ↔ Agent）
+- [ ] 自动化测试 + CI（增强路径，待回补）
 
 ### 🔴 V3 实测驱动 RAG 优化（计划中）
 - [ ] QA 评测集 + 指标系统
@@ -51,7 +52,7 @@ uv run streamlit run src/app/ui.py
 |---|---|---|
 | `LLM_API_KEY` | API Key | `sk-xxx` |
 | `LLM_BASE_URL` | API 地址 | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
-| `LLM_MODEL` | 模型名 | `deepseek-v3`（默认） |
+| `LLM_MODEL` | 模型名 | `qwen3.6-max-preview`（默认） |
 
 ## 项目结构
 
@@ -82,7 +83,8 @@ src/
 ## 发展阶段
 
 - **V1 ✅** Demo 级 — Agent 核心 + RAG 检索 + Streamlit UI 全链路跑通
-- **V2 🟢 进行中** — Phase 3（FastAPI + 异步桥接）已完成，Phase 4（E2E 验证 + 文档更新）待开始
+- **V2 ✅ 已完成** — Phase 4（E2E 验证 + 文档更新）已完成，核心路径全部交付
+- **增强路径 🟡** — 服务层、VectorStore 单例、测试+CI 待回补
 - **V3 🔴 计划中** — 实测驱动的 RAG 优化（chunk、embedding、rerank、query rewrite）
 - **V4** 生产化级 — Docker + 多用户 + 流式输出
 
