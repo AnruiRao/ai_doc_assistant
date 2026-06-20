@@ -1,6 +1,21 @@
 from core.config import Settings, DEFAULT_PROVIDER
 from openai import OpenAI
-from core.exceptions import LLMError
+from openai import (
+    RateLimitError as OpenAIRateLimitError,
+    APITimeoutError as OpenAITimeoutError,
+    APIConnectionError as OpenAIConnectionError,
+    AuthenticationError as OpenAIAuthError,
+    BadRequestError as OpenAIBadRequestError,
+    APIError as OpenAIAPIError,
+)
+from core.exceptions import (
+    LLMError,
+    LLMRateLimitError,
+    LLMTimeoutError,
+    LLMConnectionError,
+    LLMApiError,
+)
+from core.retry import llm_retry
 from typing import Any
 
 class BaseLLM:
@@ -25,24 +40,36 @@ class BaseLLM:
 
         self.client = self._create_client()
 
+    @llm_retry
     def invoke(self, messages: list[dict[str, str]], **kwargs):
-        try:    
+        try:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages
             )
             return response.choices[0].message.content
+        except OpenAIRateLimitError as e:
+            raise LLMRateLimitError(f"API限流: {e}")
+        except OpenAITimeoutError as e:
+            raise LLMTimeoutError(f"API超时: {e}")
+        except OpenAIConnectionError as e:
+            raise LLMConnectionError(f"API连接失败: {e}")
+        except (OpenAIAuthError, OpenAIBadRequestError) as e:
+            raise LLMApiError(f"API请求错误: {e}")
+        except OpenAIAPIError as e:
+            raise LLMApiError(f"API错误: {e}")
         except Exception as e:
-            raise LLMError(f"LLM调用失败: {str(e)}")
+            raise LLMError(f"LLM调用失败: {e}")
         
+    @llm_retry
     def invoke_with_tools(
-            self, 
-            messages: list[dict[str, Any]], 
+            self,
+            messages: list[dict[str, Any]],
             tools: list[dict[str, Any]] | None = None,
             tool_choice: str | dict | None = None,
             **kwargs
     ):
-            
+
         if tools:
             if tool_choice is None:
                 tool_choice = "auto"
@@ -58,8 +85,18 @@ class BaseLLM:
                 tool_choice=tool_choice
             )
             return response.choices[0].message
+        except OpenAIRateLimitError as e:
+            raise LLMRateLimitError(f"API限流: {e}")
+        except OpenAITimeoutError as e:
+            raise LLMTimeoutError(f"API超时: {e}")
+        except OpenAIConnectionError as e:
+            raise LLMConnectionError(f"API连接失败: {e}")
+        except (OpenAIAuthError, OpenAIBadRequestError) as e:
+            raise LLMApiError(f"API请求错误: {e}")
+        except OpenAIAPIError as e:
+            raise LLMApiError(f"API错误: {e}")
         except Exception as e:
-            raise LLMError(f"LLM调用失败: {str(e)}")
+            raise LLMError(f"LLM调用失败: {e}")
 
     def _create_client(self) -> OpenAI:
         return OpenAI(
