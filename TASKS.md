@@ -249,36 +249,65 @@ config → tools → react_agent ─┐
 - **文件**: `src/tools/impl/rag_tool.py`（改进）
 - **改动**: save 模式先 `clean_text()` 再 chunk，默认用 `recursive_split`
 
-### Phase 3：FastAPI + 异步桥接
+### Phase 3：FastAPI + 异步桥接 ✅ 已完成
 
-#### 3.1 异步工具
+#### 3.1 async_utils.py ✅
 
 - **文件**: `src/core/async_utils.py`（新）
-- **实现**: 一个函数 `run_in_thread(func, *args)` 包装 `asyncio.to_thread`
+- **实现**: `run_in_thread(func, *args, **kwargs)` 包装 `asyncio.to_thread`
 - **用途**: FastAPI 异步路由中调 sync Agent
 
-#### 3.2 目录结构
+#### 3.2 schemas/chat.py ✅
 
+- **文件**: `src/api/schemas/chat.py`（新）
+- **内容**: `ChatRequest(input_text, history)` + `ChatResponse(reply)`
+
+#### 3.3 routes/health.py ✅
+
+- **文件**: `src/api/routes/health.py`（新）
+- **路由**: `GET /health` → `{"status": "ok"}`
+
+#### 3.4 routes/chat.py ✅
+
+- **文件**: `src/api/routes/chat.py`（新）
+- **路由**: `POST /chat` → 创建 Agent → `asyncio.to_thread` → 返回回复
+- **设计**: 通过 `request.app.state` 获取共享 LLM/ToolRegistry
+
+#### 3.5 api/__init__.py ✅
+
+- **文件**: `src/api/__init__.py`（新）
+- **实现**: `create_app()` 工厂函数
+- **内容**: CORS 中间件（localhost:8501）、异常→HTTP 映射、注册路由、共享实例初始化
+
+#### 3.6 api/main.py ✅
+
+- **文件**: `src/api/main.py`（新）
+- **内容**: `app = create_app()` 暴露给 uvicorn
+
+#### 3.7 run_api.sh ✅
+
+- **文件**: `run_api.sh`（新）
+- **内容**: 从项目根目录加载 `.env` 后启动 uvicorn
+
+#### 3.8 修复问题 ✅
+
+- `src/agents/react_agent.py`: `history` 参数加默认值 `None`
+- `src/core/__init__.py`: `LLMException` → `LLMError`
+- `src/core/logging.py`: 移除不兼容的 structlog processor（`filter_by_level`、`add_logger_name`）
+- `src/api/__init__.py`: `BaseLLM(config)` → `BaseLLM(config=config)`（位置参数顺序 bug）
+
+#### 启动方式
+
+```bash
+cd /Users/anrui/projects/ai_doc_assistant
+./run_api.sh                        # 启动 FastAPI
+curl localhost:8000/health           # 验证健康检查
+curl -X POST localhost:8000/chat \  # 验证聊天
+  -H "Content-Type: application/json" \
+  -d '{"input_text":"你好","history":[]}'
 ```
-src/api/
-├── __init__.py          create_app() 工厂
-├── main.py              启动入口（uvicorn）
-├── routes/
-│   ├── health.py        GET /health
-│   └── chat.py          POST /chat
-└── schemas/
-    └── chat.py          ChatRequest, ChatResponse
-```
 
-#### 3.3 关键设计
-
-- **App 工厂**: `create_app()` 而非全局 `app`
-- **异常映射**: AssistantBaseError 的 `status_code` → HTTP
-- **CORS**: 允许 Streamlit（8501）跨域
-- **简化**: 不涉及服务层，Agent 路由 `await asyncio.to_thread(agent.run, ...)`
-- **不做**: AsyncBaseLLM、AsyncAgent ABC、AsyncReactAgent（V2 不需要两套 Agent）
-
-### Phase 4：E2E 验证 + 文档更新
+### Phase 4：E2E 验证 + 文档更新 🟢 待开始
 
 #### 4.1 全链路验证
 
@@ -315,14 +344,20 @@ src/api/
 ### 启动方式
 
 ```bash
-# 启动 FastAPI
-uv run uvicorn api.main:app --reload --port 8000
+# 启动 FastAPI（推荐）
+./run_api.sh
+
+# 或手动启动
+cd /Users/anrui/projects/ai_doc_assistant
+export $(grep -v '^#' .env | xargs)
+uv run uvicorn api.main:app --reload --port 8000 --app-dir src
 
 # 启动 Streamlit（调用 API 模式）
 USE_API=true uv run streamlit run src/app/ui.py
 
 # 跑测试
-uv run pytest tests/unit tests/core tests/services tests/api -v
+cd /Users/anrui/projects/ai_doc_assistant
+PYTHONPATH=src uv run pytest tests/ -v
 ```
 
 ---

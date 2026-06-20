@@ -1,6 +1,6 @@
 from core.config import Settings, DEFAULT_PROVIDER
 from openai import OpenAI
-from core.exceptions import LLMException
+from core.exceptions import LLMError
 from typing import Any
 
 class BaseLLM:
@@ -33,7 +33,7 @@ class BaseLLM:
             )
             return response.choices[0].message.content
         except Exception as e:
-            raise LLMException(f"LLM调用失败: {str(e)}")
+            raise LLMError(f"LLM调用失败: {str(e)}")
         
     def invoke_with_tools(
             self, 
@@ -59,7 +59,7 @@ class BaseLLM:
             )
             return response.choices[0].message
         except Exception as e:
-            raise LLMException(f"LLM调用失败: {str(e)}")
+            raise LLMError(f"LLM调用失败: {str(e)}")
 
     def _create_client(self) -> OpenAI:
         return OpenAI(
