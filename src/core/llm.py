@@ -16,7 +16,27 @@ from core.exceptions import (
     LLMApiError,
 )
 from core.retry import llm_retry
+from contextlib import contextmanager
 from typing import Any
+
+
+@contextmanager
+def _translate_openai_errors():
+    try:
+        yield
+    except OpenAIRateLimitError as e:
+        raise LLMRateLimitError(f"API限流: {e}")
+    except OpenAITimeoutError as e:
+        raise LLMTimeoutError(f"API超时: {e}")
+    except OpenAIConnectionError as e:
+        raise LLMConnectionError(f"API连接失败: {e}")
+    except (OpenAIAuthError, OpenAIBadRequestError) as e:
+        raise LLMApiError(f"API请求错误: {e}")
+    except OpenAIAPIError as e:
+        raise LLMApiError(f"API错误: {e}")
+    except Exception as e:
+        raise LLMError(f"LLM调用失败: {e}")
+
 
 class BaseLLM:
     def __init__(
@@ -42,24 +62,12 @@ class BaseLLM:
 
     @llm_retry
     def invoke(self, messages: list[dict[str, str]], **kwargs):
-        try:
+        with _translate_openai_errors():
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages
             )
             return response.choices[0].message.content
-        except OpenAIRateLimitError as e:
-            raise LLMRateLimitError(f"API限流: {e}")
-        except OpenAITimeoutError as e:
-            raise LLMTimeoutError(f"API超时: {e}")
-        except OpenAIConnectionError as e:
-            raise LLMConnectionError(f"API连接失败: {e}")
-        except (OpenAIAuthError, OpenAIBadRequestError) as e:
-            raise LLMApiError(f"API请求错误: {e}")
-        except OpenAIAPIError as e:
-            raise LLMApiError(f"API错误: {e}")
-        except Exception as e:
-            raise LLMError(f"LLM调用失败: {e}")
         
     @llm_retry
     def invoke_with_tools(
@@ -77,7 +85,7 @@ class BaseLLM:
             tools = None
             tool_choice = None
 
-        try:
+        with _translate_openai_errors():
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
@@ -85,18 +93,6 @@ class BaseLLM:
                 tool_choice=tool_choice
             )
             return response.choices[0].message
-        except OpenAIRateLimitError as e:
-            raise LLMRateLimitError(f"API限流: {e}")
-        except OpenAITimeoutError as e:
-            raise LLMTimeoutError(f"API超时: {e}")
-        except OpenAIConnectionError as e:
-            raise LLMConnectionError(f"API连接失败: {e}")
-        except (OpenAIAuthError, OpenAIBadRequestError) as e:
-            raise LLMApiError(f"API请求错误: {e}")
-        except OpenAIAPIError as e:
-            raise LLMApiError(f"API错误: {e}")
-        except Exception as e:
-            raise LLMError(f"LLM调用失败: {e}")
 
     def _create_client(self) -> OpenAI:
         return OpenAI(
