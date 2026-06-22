@@ -9,7 +9,7 @@ from core.logging import configure_logging
 from tools.registry import ToolRegistry
 from tools.impl.rag_tool import RagTool
 from tools.impl.calculator import CalculatorTool
-from api.routes import health, chat
+from api.routes import health, chat, documents
 
 
 def create_app():
@@ -48,5 +48,6 @@ def create_app():
     # 挂载路由
     app.include_router(health.router, tags=["health"])
     app.include_router(chat.router, tags=["chat"])
+    app.include_router(documents.router, tags=["documents"])
 
     return app
