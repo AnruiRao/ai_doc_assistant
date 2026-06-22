@@ -297,15 +297,17 @@ RAG Tool 的核心问题是：**多次保存文档时如何避免 Chroma 的 ID 
 | 阶段 | ID 策略 | 方案说明 | 优点 | 缺点 |
 |---|---|---|---|---|
 | **V1 Demo** | UUID | 每次 save 生成 uuid4()，metadata 记 source 追溯来源 | 无碰撞风险，一行搞定 | ID 不可读，重复上传产生副本 |
-| **V2 工程化** | 文件名+序号 | 先按 metadata.source 删除旧 chunks，再重新插入 | 每个文件始终一份，ID 可读 | 需要 VectorStore 支持按条件删除 |
+| **V2 工程化** | UUID + 同名替换 | 每次 save 用 uuid4()，上传前按 filename 匹配删旧文档 | 无碰撞，零配置，同名文件自动替换 | ID 不可读，重复上传不产生副本 |
 | **V3 评测驱动** | 内容哈希 | MD5(chunk) 做 ID，内容不变 ID 不变 | 确定性、可复现评测、自动去重 | 哈希碰撞理论风险极低 |
 | **V4 生产化** | 文件名+序号+用户ID | 拼接 user123_doc.txt_0 | 多用户天然隔离 | ID 变长 |
 
-**V1 当前实现要点**：
+**V2 当前实现要点**：
 - `ids = [str(uuid4()) for _ in chunks]` — 永远不碰撞
 - `metadatas` 存 `{"source": path, "chunk_index": i}` — 搜索结果可显示来源
 - search 返回 `[来源: xxx]` 标签 — Agent 能告知用户信息出处
-- delete 模式先 `vs.count()` 检查再删除 — 空集合不误报"已删除"
+- delete 模式支持按 `source` 参数删除指定文档或清空全库
+- list 模式读取注册表 `data/documents.json` 返回文档列表
+- 同名上传自动替换：先删旧文档（Chroma + 磁盘 + 注册表）再存新文档
 - 无相关性阈值 — V1 直接 top-k 返回，V3 引入距离阈值
 
 ---

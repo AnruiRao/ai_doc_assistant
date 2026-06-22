@@ -341,6 +341,15 @@ curl -X POST localhost:8000/chat \  # 验证聊天
   - `./run.sh` 一键启动 FastAPI + Streamlit
 - **收益**: Streamlit 秒级启动，分离部署，`run.sh` 一个命令跑全部
 
+#### 增强 3：rag_tool 增强 + 去重 ✅
+
+- **文件**: `src/tools/impl/rag_tool.py`、`src/api/routes/documents.py`
+- **内容**:
+  - rag_tool 新增 `list` 模式：Agent 可在对话中列举所有已上传文档
+  - rag_tool `delete` 模式新增 `source` 参数：按路径删除指定文档，不传则清全库
+  - 上传同名文件自动替换：先删旧的（Chroma + 磁盘 + 注册表）再存新的
+- **收益**: Agent 可管理文档，避免重复文档污染知识库
+
 **待回补：**
 
 #### 增强 1：服务层 🟡
