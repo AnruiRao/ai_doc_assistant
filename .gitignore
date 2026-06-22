@@ -10,6 +10,8 @@ venv/
 
 # Data
 data/chroma/
+data/uploads/
+data/documents.json
 data/docs/*.pdf
 data/docs/*.txt
 
