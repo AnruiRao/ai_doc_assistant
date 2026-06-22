@@ -6,7 +6,9 @@ from ingestion.loader import load_document
 from ingestion.cleaner import clean_text
 from ingestion.chunker import Chunker
 from retrieval.vector_store import VectorStore
+import structlog
 
+logger = structlog.get_logger(__name__)
 
 class RagToolInput(BaseModel):
     """RAG 工具输入：save=存储文档，search=检索知识"""
@@ -53,6 +55,8 @@ class RagTool(Tool):
 
             vs = VectorStore(collection_name=collection_name, persist_directory=persist_directory)
             vs.add_documents(documents=chunks, ids=ids, metadatas=metadatas)
+            
+            logger.info("调用工具成功",use_for = use_for)
             return f"已将文档存入集合 '{collection_name}'，共 {len(chunks)} 个片段"
 
         if use_for == "search":
@@ -70,6 +74,8 @@ class RagTool(Tool):
             for doc, meta in zip(docs, metas):
                 source = meta.get("source", "未知来源") if meta else "未知来源"
                 lines.append(f"[来源: {source}]\n{doc}")
+
+            logger.info("调用工具成功",use_for = use_for)
             return f"检索到 {len(docs)} 条结果:\n\n" + "\n---\n".join(lines)
         
         if use_for == "delete":
@@ -78,6 +84,8 @@ class RagTool(Tool):
             if count == 0:
                 return f"集合 '{collection_name}' 不存在或已为空"
             vs.delete_collection()
+
+            logger.info("调用工具成功",use_for = use_for)
             return f"已删除向量库集合：{collection_name}（共 {count} 个片段）"
 
         return f"错误：不支持的 use_for 值 '{use_for}'，仅支持 save、search、delete"

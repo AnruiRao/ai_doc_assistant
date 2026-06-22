@@ -161,17 +161,17 @@ config → tools → react_agent ─┐
                               loader → chunker → vector_store
                                         └→ 测试
 
-第四阶段（V2 工程化级 ⏳）
+第四阶段（V2 工程化级 ✅）
 
 核心路径:
   Phase 1 (✅) → Phase 2 (RAG: cleaner + recursive chunk) → Phase 3 (FastAPI + async bridge)
                                                              ↓
                                                     Phase 4 (E2E verify + docs)
 
-增强路径（核心完成后回补）:
-  ├ 服务层 (Document/Agent/Chat Service)
-  ├ VectorStore 单例 + Streamlit 瘦客户端
-  └ 测试 + CI (Mock + pytest-asyncio + GitHub Actions)
+增强路径:
+  ✅ 文档管理 API + Streamlit 瘦客户端
+  🟡 服务层 (Document/Agent/Chat Service)
+  🟡 测试 + CI (Mock + pytest-asyncio + GitHub Actions)
 ```
 
 ---
@@ -327,21 +327,29 @@ curl -X POST localhost:8000/chat \  # 验证聊天
 
 ---
 
-### 增强路径（核心路径完成后，时间充裕再回补）
+### 增强路径（核心路径已完成 ✅）
 
-#### 增强 1：服务层
+**已完成的增强：**
+
+#### 增强 2：文档管理 API + Streamlit 瘦客户端 ✅
+
+- **文件**: `src/api/routes/documents.py`、`src/app/ui.py`、`run.sh`
+- **内容**:
+  - FastAPI 文档管理接口：`POST /upload`、`GET /documents`、`DELETE /documents/{id}`
+  - JSON 注册表 `data/documents.json` 追踪文档
+  - Streamlit 去掉所有直接依赖（Agent/Chroma/ToolRegistry），纯 httpx 调后端
+  - `./run.sh` 一键启动 FastAPI + Streamlit
+- **收益**: Streamlit 秒级启动，分离部署，`run.sh` 一个命令跑全部
+
+**待回补：**
+
+#### 增强 1：服务层 🟡
 
 - **文件**: `src/services/document_service.py`、`src/services/agent_service.py`、`src/services/chat_service.py`
 - **内容**: 将 FastAPI 路由中的逻辑抽取为 Service 层，DocumentService 编排上传→入库，AgentService 管理 Agent 生命周期，ChatService 管理会话历史
 - **收益**: 路由更薄，业务逻辑可复用、可单独测
 
-#### 增强 2：VectorStore 单例 + Streamlit 瘦客户端
-
-- **文件**: `src/retrieval/vector_store.py`、`src/app/ui.py`
-- **内容**: `get_vector_store()` 单例工厂、线程安全、`USE_API` 开关
-- **收益**: Streamlit 通过 httpx 调 FastAPI，分离部署
-
-#### 增强 3：测试 + CI
+#### 增强 3：测试 + CI 🟡
 
 - **文件**: `tests/` 目录、`.github/workflows/ci.yml`
 - **内容**: Mock 测试、pytest-asyncio、TestClient 路由测试、GitHub Actions
@@ -350,16 +358,12 @@ curl -X POST localhost:8000/chat \  # 验证聊天
 ### 启动方式
 
 ```bash
-# 启动 FastAPI（推荐）
-./run_api.sh
+# 一键启动（默认）
+./run.sh
 
-# 或手动启动
-cd /Users/anrui/projects/ai_doc_assistant
-export $(grep -v '^#' .env | xargs)
-uv run uvicorn api.main:app --reload --port 8000 --app-dir src
-
-# 启动 Streamlit（调用 API 模式）
-USE_API=true uv run streamlit run src/app/ui.py
+# 或分进程启动
+./run_api.sh                                    # FastAPI 单独
+uv run streamlit run src/app/ui.py              # Streamlit 单独
 
 # 跑测试
 cd /Users/anrui/projects/ai_doc_assistant

@@ -16,16 +16,19 @@
 - [x] RAG 工具集成（save 前自动 clean + 递归切分）— Phase 2.3
 - [x] Streamlit Web UI
 
-### ✅ V2 工程化（核心路径已完成）
+### ✅ V2 工程化（核心路径 + 增强已完成）
 - [x] 异常体系（树形结构，可重试 vs 不可重试）
 - [x] 重试机制（tenacity 指数退避）
 - [x] 结构化日志（structlog，开发彩显 + 生产 JSON）
 - [x] 文本噪声清理 + 递归分割（Phase 2 完成）
 - [x] FastAPI REST API（`POST /chat`, `GET /health`）
+- [x] 文档管理 API（上传 / 列表 / 删除）
 - [x] 异步 Agent 桥接（asyncio.to_thread）
 - [x] API 跨域支持（Streamlit + FastAPI 双进程）
+- [x] Streamlit 瘦客户端（纯 httpx，剔除 Agent/Chroma 依赖）
+- [x] 一键启动（`./run.sh` 同时拉起 FastAPI + Streamlit）
 - [x] 全链路验证通过（API ↔ RAG ↔ Agent）
-- [ ] 自动化测试 + CI（增强路径，待回补）
+- [ ] 自动化测试 + CI（待回补）
 
 ### 🔴 V3 实测驱动 RAG 优化（计划中）
 - [ ] QA 评测集 + 指标系统
@@ -39,11 +42,7 @@
 cp .env.example .env           # 填入 API Key 等信息
 uv sync                         # 安装依赖
 
-# 模式一：直接启动 Streamlit（V1 模式）
-uv run streamlit run src/app/ui.py
-
-# 模式二：启动 FastAPI 服务（V2 模式）
-./run_api.sh
+./run.sh                        # 一键启动（FastAPI + Streamlit）
 ```
 
 ### 环境变量
@@ -64,9 +63,13 @@ src/
 ├── agents/            ReAct Agent 实现
 ├── ingestion/         文档处理（loader、chunker）
 ├── retrieval/         向量检索（Chroma 封装）
-├── app/               Streamlit 界面
-├── api/               FastAPI REST 服务（V2）
-└── services/          业务服务层（V2 增强）
+├── app/               Streamlit 界面（瘦客户端，纯 httpx）
+├── api/               FastAPI REST 服务
+│   ├── main.py        入口
+│   ├── __init__.py    工厂函数
+│   ├── schemas/       Pydantic 请求/响应模型
+│   └── routes/        路由（health / chat / documents）
+└── services/          业务服务层（V2 预留）
 ```
 
 ## 技术栈
@@ -83,8 +86,8 @@ src/
 ## 发展阶段
 
 - **V1 ✅** Demo 级 — Agent 核心 + RAG 检索 + Streamlit UI 全链路跑通
-- **V2 ✅ 已完成** — Phase 4（E2E 验证 + 文档更新）已完成，核心路径全部交付
-- **增强路径 🟡** — 服务层、VectorStore 单例、测试+CI 待回补
+- **V2 ✅** 工程化级 — 异常体系、重试、日志、FastAPI、文档管理 API、Streamlit 瘦客户端
+- **增强路径 🟡** — 服务层、测试+CI 待回补
 - **V3 🔴 计划中** — 实测驱动的 RAG 优化（chunk、embedding、rerank、query rewrite）
 - **V4** 生产化级 — Docker + 多用户 + 流式输出
 
