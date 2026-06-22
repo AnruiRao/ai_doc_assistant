@@ -12,8 +12,6 @@ venv/
 data/chroma/
 data/uploads/
 data/documents.json
-data/docs/*.pdf
-data/docs/*.txt
 
 # IDE
 .vscode/
