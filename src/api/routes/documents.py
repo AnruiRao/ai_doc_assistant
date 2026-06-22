@@ -100,6 +100,20 @@ def _save_registry(registry: list[dict]):
         encoding="utf-8",
     )
 
+def _delete_document_by_filename(filename: str):
+    """删除注册表中同名的文档及其 Chroma 数据和磁盘文件。"""
+    registry = _load_registry()
+    for doc in registry:
+        if doc["filename"] == filename:
+            VectorStore(collection_name="documents").delete_by_metadata({"source": doc["path"]})
+            file_path = Path(doc["path"])
+            if file_path.exists():
+                file_path.unlink()
+            registry = [d for d in registry if d["id"] != doc["id"]]
+            _save_registry(registry)
+            return
+
+
 def _process_and_register(
         path,
         filename,
@@ -107,6 +121,9 @@ def _process_and_register(
         chunk_size,
         chunk_overlap
 ):
+    # 同名替换：删除已存在的同名文档
+    _delete_document_by_filename(filename)
+
     text = load_document(path=path)
     text = clean_text(text)
     chunks = Chunker(chunk_size, chunk_overlap).recursive_split(text,chunk_size)
