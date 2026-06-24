@@ -7,7 +7,6 @@ from ingestion.cleaner import clean_text
 from ingestion.chunker import Chunker
 from retrieval.vector_store import VectorStore
 import structlog
-from pathlib import Path
 from services.document_service import DocumentService
 
 logger = structlog.get_logger(__name__)

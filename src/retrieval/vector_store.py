@@ -40,7 +40,7 @@ class VectorStore:
 
     def delete_by_metadata(self, where: dict):
         if where is None:
-            raise RetrievalError(f"metadata为空") 
+            raise RetrievalError("metadata为空") 
         else:
             self.collection.delete(where=where)
             logger.info("信息已删除", where=where, collection=self.collection.name)

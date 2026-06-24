@@ -2,7 +2,6 @@ from core.agent import Agent
 from core.llm import BaseLLM
 from tools.registry import ToolRegistry
 from core.config import Settings
-from typing import Any
 import json
 
 DEFAULT_SYSTEM_PROMPT = "你是一个善于调用工具的ai助手。"

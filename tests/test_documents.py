@@ -3,7 +3,6 @@ import pytest
 from fastapi import FastAPI
 from api.routes.documents import router
 from fastapi.testclient import TestClient
-import json
 
 class TestDocumentService:
 
