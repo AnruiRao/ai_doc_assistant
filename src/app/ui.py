@@ -78,3 +78,5 @@ if text := st.chat_input("请输入你的内容："):
     st.session_state.messages.append({"role": "assistant", "content": answer})
     with st.chat_message("assistant"):
         st.write(answer)
+
+    st.rerun()

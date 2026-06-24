@@ -87,14 +87,12 @@ class RagTool(Tool):
             if count == 0:
                 return f"集合 '{collection_name}' 不存在或已为空"
             if not source:
-                vs.delete_collection()
-                logger.info("调用工具成功",use_for = use_for)
-                return f"已删除向量库集合：{collection_name}（共 {count} 个片段）"
+                DocumentService().delete_all()
+                logger.info("调用工具成功", use_for=use_for)
+                return f"已删除所有文档（共 {count} 个片段）"
             else:
-                DocumentService().delete_by_source(source)
-
-                logger.info("调用工具成功",use_for = use_for, source = source)
-                return f"已删除指定路径: {source} 文档"
+                # TODO: 按名称删除文档功能开发中（需支持文件名模糊匹配+结果确认）
+                return "聊天中暂时不支持按名称删除文档，请前往文档管理页面操作"
 
         if use_for == "list":
             record = DocumentService().list_documents()

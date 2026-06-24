@@ -89,6 +89,26 @@ class DocumentService:
         self._delete_by_record(doc)
         return doc
 
+    def delete_all(self) -> int:
+        """删除所有文档（文件 + Chroma + 注册表），返回删除数量。"""
+        registry = self._load_registry()
+        count = len(registry)
+
+        for r in registry:
+            file_path = Path(r["path"])
+            if file_path.exists():
+                file_path.unlink()
+
+        vs = VectorStore(collection_name="documents", persist_directory=CHROMA_PATH)
+        try:
+            vs.delete_collection()
+        except Exception:
+            pass
+
+        REGISTRY_PATH.write_text("[]", encoding="utf-8")
+        logger.info("all_documents_deleted", count=count)
+        return count
+
     def delete_by_source(self, source_path: str | Path) -> bool:
         doc = next(
             (DocumentRecord(**r) for r in self._load_registry() if r["path"] == str(source_path)),
