@@ -275,7 +275,8 @@ src/
 - 增强：文档管理 API（上传/列表/删除）✅
 - 增强：Streamlit 瘦客户端（全走 httpx，剔除 Chroma 依赖）✅
 - 增强：一键启动 `./run.sh` ✅
-- **剩余增强**（服务层、测试+CI）🟡 待回补
+- **增强**：服务层（DocumentService + routes 变薄 + rag_tool 去重）✅
+- **增强**：测试 + CI（41 测试 + GitHub Actions）✅
 
 ---
 

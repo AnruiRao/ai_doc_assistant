@@ -350,19 +350,26 @@ curl -X POST localhost:8000/chat \  # 验证聊天
   - 上传同名文件自动替换：先删旧的（Chroma + 磁盘 + 注册表）再存新的
 - **收益**: Agent 可管理文档，避免重复文档污染知识库
 
+#### 增强 4：服务层 ✅
+
+- **文件**: `src/services/__init__.py`、`src/services/document_service.py`
+- **内容**:
+  - DocumentService 封装上传/列表/删除业务逻辑，统一注册表 + Chroma + 磁盘操作
+  - `routes/documents.py` 路由变薄（~150→48 行），三条全 `def`，FastAPI 自动线程池
+  - `rag_tool.py` 复用 DocumentService，删除重复的 `_load_registry` / `_save_registry`
+- **收益**: 路由仅处理 HTTP 细节，业务逻辑集中在 Service 层；消除两处重复代码
+- **注意**: AgentService 跳过（chat.py 已够薄），ChatService 跳过（尚无持久化需求）
+
 **待回补：**
 
-#### 增强 1：服务层 🟡
+#### 测试 + CI ✅
 
-- **文件**: `src/services/document_service.py`、`src/services/agent_service.py`、`src/services/chat_service.py`
-- **内容**: 将 FastAPI 路由中的逻辑抽取为 Service 层，DocumentService 编排上传→入库，AgentService 管理 Agent 生命周期，ChatService 管理会话历史
-- **收益**: 路由更薄，业务逻辑可复用、可单独测
+- **文件**: `tests/test_documents.py`、`.github/workflows/ci.yml`
+- **内容**: pytest 配置（asyncio_mode + testpaths）、DocumentService 测试（4 个）、API TestClient 路由测试（6 个）、GitHub Actions CI（uv sync → pytest → ruff check）
+- **收益**: 每次 push 自动跑全部 41 个测试，质量防线
+- **注意**: `test_react_agent.py`（依赖真实 API key）加了 skip marker，CI 跳过；Agent 层暂无 mock 测试，后续有需求再补
 
-#### 增强 3：测试 + CI 🟡
-
-- **文件**: `tests/` 目录、`.github/workflows/ci.yml`
-- **内容**: Mock 测试、pytest-asyncio、TestClient 路由测试、GitHub Actions
-- **收益**: 自动化质量保障
+---
 
 ### 启动方式
 

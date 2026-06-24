@@ -3,11 +3,14 @@
 运行前确保 .env 已配置好 LLM_API_KEY。
 """
 
+import pytest
+
 from tools.impl.calculator import CalculatorTool
 from tools.registry import ToolRegistry
 from agents.react_agent import ReactAgent
 
 
+@pytest.mark.skip(reason="需要 LLM API key，CI 不运行")
 def test_calculator_tool_turn():
     """注册计算器工具，让 Agent 调用它。"""
     registry = ToolRegistry()
@@ -22,6 +25,7 @@ def test_calculator_tool_turn():
     print("✅ 测试通过：Agent 正确调用了计算器工具")
 
 
+@pytest.mark.skip(reason="需要 LLM API key，CI 不运行")
 def test_agent_direct_answer():
     """不依赖工具时，Agent 应直接回答。"""
     agent = ReactAgent()

@@ -8,11 +8,9 @@ from ingestion.chunker import Chunker
 from retrieval.vector_store import VectorStore
 import structlog
 from pathlib import Path
-import json
+from services.document_service import DocumentService
 
 logger = structlog.get_logger(__name__)
-
-REGISTRY_PATH = Path("data/documents.json")
 
 class RagToolInput(BaseModel):
     """RAG 工具输入：save=存储文档，search=检索知识"""
@@ -34,17 +32,6 @@ class RagTool(Tool):
             description="RAG 知识库工具：save 模式存储文档并建立向量索引，search 模式检索相关内容， delete 模式删除向量库",
             input_model=RagToolInput,
         )
-
-    @staticmethod
-    def _load_registry() -> list[dict]:
-        if not REGISTRY_PATH.exists():
-            return []
-        return json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
-
-    @staticmethod
-    def _save_registry(registry: list[dict]):
-        REGISTRY_PATH.parent.mkdir(parents=True, exist_ok=True)
-        REGISTRY_PATH.write_text(json.dumps(registry, ensure_ascii=False, indent=2), encoding="utf-8")
         
     def run(
         self,
@@ -105,24 +92,18 @@ class RagTool(Tool):
                 logger.info("调用工具成功",use_for = use_for)
                 return f"已删除向量库集合：{collection_name}（共 {count} 个片段）"
             else:
-                vs.delete_by_metadata({"source": source})
-                registry = self._load_registry()
-                file_path = Path(source)
-                if file_path.exists():
-                    file_path.unlink()
-                registry = [doc for doc in registry if doc["path"] != source]
-                self._save_registry(registry)
+                DocumentService().delete_by_source(source)
 
                 logger.info("调用工具成功",use_for = use_for, source = source)
                 return f"已删除指定路径: {source} 文档"
 
         if use_for == "list":
-            registry = self._load_registry()
+            record = DocumentService().list_documents()
             files = []
-            for doc in registry:
-                if doc["filename"] is not None:
-                    files.append(f"[来源:{doc['path']}]\n{doc['filename']}")
+            for doc in record:
+                if doc.filename is not None:
+                    files.append(f"[来源:{doc.path}]\n{doc.filename}")
             logger.info("调用工具成功",use_for = use_for)
-            return f"已找到文档 {len(registry)} 条:\n\n" + "\n---\n".join(files)
+            return f"已找到文档 {len(record)} 条:\n\n" + "\n---\n".join(files)
 
         return f"错误：不支持的 use_for 值 '{use_for}'，仅支持 save、search、delete、list"

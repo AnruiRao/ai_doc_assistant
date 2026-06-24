@@ -28,7 +28,8 @@
 - [x] Streamlit 瘦客户端（纯 httpx，剔除 Agent/Chroma 依赖）
 - [x] 一键启动（`./run.sh` 同时拉起 FastAPI + Streamlit）
 - [x] 全链路验证通过（API ↔ RAG ↔ Agent）
-- [ ] 自动化测试 + CI（待回补）
+- [x] 服务层（DocumentService + routes 变薄 + rag_tool 去重）
+- [x] 自动化测试 + CI（41 测试 + GitHub Actions workflows）
 
 ### 🔴 V3 实测驱动 RAG 优化（计划中）
 - [ ] QA 评测集 + 指标系统
@@ -69,7 +70,7 @@ src/
 │   ├── __init__.py    工厂函数
 │   ├── schemas/       Pydantic 请求/响应模型
 │   └── routes/        路由（health / chat / documents）
-└── services/          业务服务层（V2 预留）
+└── services/          业务服务层（DocumentService）
 ```
 
 ## 技术栈
@@ -86,8 +87,7 @@ src/
 ## 发展阶段
 
 - **V1 ✅** Demo 级 — Agent 核心 + RAG 检索 + Streamlit UI 全链路跑通
-- **V2 ✅** 工程化级 — 异常体系、重试、日志、FastAPI、文档管理 API、Streamlit 瘦客户端
-- **增强路径 🟡** — 服务层、测试+CI 待回补
+- **V2 ✅** 工程化级 — 异常体系、重试、日志、FastAPI、文档管理 API、Streamlit 瘦客户端、服务层、测试+CI
 - **V3 🔴 计划中** — 实测驱动的 RAG 优化（chunk、embedding、rerank、query rewrite）
 - **V4** 生产化级 — Docker + 多用户 + 流式输出
 
