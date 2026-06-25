@@ -13,8 +13,8 @@ async def upload(
     chunk_overlap: int = Form(50),
 ):
     suffix = Path(file.filename).suffix.lower()
-    if suffix not in (".txt", ".pdf"):
-        raise HTTPException(status_code=400, detail="仅支持传入.txt与.pdf文件")
+    if suffix not in (".txt", ".md", ".pdf", ".py", ".yaml", ".yml", ".toml", ".json", ".cfg", ".ini"):
+        raise HTTPException(status_code=400, detail="仅支持传入 .txt/.md/.py/.yaml/.toml/.json 等纯文本文件与 .pdf 文件")
 
     content = await file.read()
     result = DocumentService().upload(content, file.filename, chunk_size, chunk_overlap)

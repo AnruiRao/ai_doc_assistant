@@ -18,9 +18,9 @@ def load_pdf(path: str | Path) -> str:
 def load_document(path: str | Path) -> str:
     p = Path(path)
     suffix = p.suffix.lower()
-    if suffix == ".txt":
+    if suffix in (".txt", ".md", ".py", ".yaml", ".yml", ".toml", ".json", ".cfg", ".ini"):
         return load_text(p)
     elif suffix == ".pdf":
         return load_pdf(p)
     else:
-        raise ValueError(f"不支持的文件类型: {suffix}，仅支持 .txt 和 .pdf")
+        raise ValueError(f"不支持的文件类型: {suffix}，仅支持 .txt/.md/.py/.yaml/.toml/.json 等纯文本文件和 .pdf")

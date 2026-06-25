@@ -17,6 +17,7 @@
 | 005 | [Agent 模式选型](005-agent-pattern.md) | 已实施 |
 | 006 | [工具系统设计](006-tool-system.md) | 已实施 |
 | 007 | [FastAPI + 异步桥接架构](007-fastapi-async.md) | 已实施 |
+| 008 | [Agent 工具参数语义不一致问题](008-tool-parameter-semantic-mismatch.md) | 已识别，待修复 |
 
 ## 规范
 

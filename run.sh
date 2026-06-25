@@ -4,7 +4,7 @@ export $(grep -v '^#' .env | xargs)
 
 # 启动 FastAPI（后台）
 echo "Starting FastAPI..."
-uv run uvicorn api.main:app --reload --port 8000 --app-dir src &
+uv run uvicorn api.main:app --reload --host 0.0.0.0 --port 8000 --app-dir src &
 API_PID=$!
 
 # 等待 FastAPI 就绪

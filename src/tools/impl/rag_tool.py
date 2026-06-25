@@ -14,9 +14,9 @@ logger = structlog.get_logger(__name__)
 class RagToolInput(BaseModel):
     """RAG 工具输入：save=存储文档，search=检索知识"""
     use_for: Literal["save", "search", "delete", "list"] = Field(description="操作类型")
-    path: str = Field(default="", description="[save 模式] 文件路径，支持 .txt 和 .pdf")
-    chunk_size: int = Field(default=500, description="[save 模式] 每块字符数")
-    chunk_overlap: int = Field(default=50, description="[save 模式] 相邻块重叠字符数")
+    path: str = Field(default="", description="[save 模式] 文件路径，支持 .txt/.md/.py/.yaml/.toml/.json 等纯文本文件和 .pdf")
+    chunk_size: int = Field(default=1000, description="[save 模式] 每块字符数")
+    chunk_overlap: int = Field(default=100, description="[save 模式] 相邻块重叠字符数")
     query: str = Field(default="", description="[search 模式] 检索关键词")
     k: int = Field(default=4, description="[search 模式] 返回结果数量")
     collection_name: str = Field(default="documents", description="向量库集合名称")
@@ -36,8 +36,8 @@ class RagTool(Tool):
         self,
         use_for: Literal["save", "search", "delete", "list"],
         path: str = "",
-        chunk_size: int = 500,
-        chunk_overlap: int = 50,
+        chunk_size: int = 1000,
+        chunk_overlap: int = 100,
         collection_name: str = "documents",
         persist_directory: str = "data/chroma",
         query: str = "",
@@ -74,12 +74,43 @@ class RagTool(Tool):
 
             metas = results["metadatas"][0] if results.get("metadatas") else [None] * len(docs)
             lines = []
+            seen_ids = set()
             for doc, meta in zip(docs, metas):
                 source = meta.get("source", "未知来源") if meta else "未知来源"
-                lines.append(f"[来源: {source}]\n{doc}")
+                chunk_index = meta.get("chunk_index") if meta else None
 
-            logger.info("调用工具成功",use_for = use_for)
-            return f"检索到 {len(docs)} 条结果:\n\n" + "\n---\n".join(lines)
+                # 滑动窗口：取命中 chunk 前后各 N 个相邻 chunk，帮助模型理解上下文
+                context_window = 2
+                if source and chunk_index is not None:
+                    neighbors = vs.collection.get(
+                        where={
+                            "$and": [
+                                {"source": {"$eq": source}},
+                                {"chunk_index": {"$gte": chunk_index - context_window}},
+                                {"chunk_index": {"$lte": chunk_index + context_window}},
+                            ]
+                        }
+                    )
+                    neighbor_texts = neighbors.get("documents", [])
+                    neighbor_metas = neighbors.get("metadatas", [])
+                    neighbor_ids = neighbors.get("ids", [])
+                    # 按 chunk_index 排序，组装成带上下文的文档块
+                    neighbor_pairs = sorted(
+                        [
+                            (m.get("chunk_index", 0) if m else 0, nid, txt, m.get("source", source) if m else source)
+                            for txt, m, nid in zip(neighbor_texts, neighbor_metas, neighbor_ids)
+                            if nid not in seen_ids
+                        ],
+                        key=lambda x: x[0],
+                    )
+                    for ci, nid, txt, src in neighbor_pairs:
+                        seen_ids.add(nid)
+                        lines.append(f"[来源: {src} 片段 {ci}]\n{txt}")
+                else:
+                    lines.append(f"[来源: {source}]\n{doc}")
+
+            logger.info("调用工具成功", use_for=use_for)
+            return f"检索到 {len(docs)} 条结果（含上下文）:\n\n" + "\n---\n".join(lines)
         
         if use_for == "delete":
             vs = VectorStore(collection_name=collection_name, persist_directory=persist_directory)
@@ -91,7 +122,8 @@ class RagTool(Tool):
                 logger.info("调用工具成功", use_for=use_for)
                 return f"已删除所有文档（共 {count} 个片段）"
             else:
-                # TODO: 按名称删除文档功能开发中（需支持文件名模糊匹配+结果确认）
+                # TODO: 按名称删除文档（docs/decisions/008-tool-parameter-semantic-mismatch.md）
+                # 方案：工具入参对齐 filename，内部精确匹配优先+模糊匹配+多条命中时返回列表让 Agent 追问
                 return "聊天中暂时不支持按名称删除文档，请前往文档管理页面操作"
 
         if use_for == "list":

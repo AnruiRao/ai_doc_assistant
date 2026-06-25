@@ -6,7 +6,7 @@ st.set_page_config(page_title="AI知识文档")
 with st.sidebar:
     st.title("文档管理")
 
-    uploaded_file = st.file_uploader("上传文档", type=["txt", "pdf"])
+    uploaded_file = st.file_uploader("上传文档（.txt / .md / .pdf / .py）", type=["txt", "md", "pdf", "py"])
 
     if uploaded_file and st.button("存入知识库"):
         try:
