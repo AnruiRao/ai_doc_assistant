@@ -46,6 +46,7 @@ while steps < max_steps:
 
 ## 后续计划
 
+- **V3**：Agent 本身不做大改动，RAG 优化（chunk、embedding）是主线；新增 search 次数硬拦截 max_search=3
 - **V4**：引入 LangChain / LangGraph 适配层，对比自实现和框架方案的差异
 
 ---
@@ -57,31 +58,25 @@ while steps < max_steps:
 当前通过 `tool_calls[].name` 与 `registry.get_tool(name)` 精确匹配。LLM 返回的 function name 必须在 registry 中注册过，否则 `get_tool` 返回 None。这是最简单的精确匹配策略，不做模糊匹配或相似度路由。
 
 后续演进：
-- **V3**：加入 Tool 描述相似度 fallback，当精确匹配不到时尝试语义搜索工具描述
 - **V4**：支持 Tool 分组 + 权限控制，不同场景暴露不同工具集
 
 ### Prompt 结构
 
-当前 Agent 的 system prompt 未显式写入文档，实际结构如下：
+当前 Agent 的 system prompt（`react_agent.py` 中 `DEFAULT_SYSTEM_PROMPT`）：
 
 ```
-你是 AI 文档助手，使用中文回答问题。
-你有以下工具可用：
-- {tool_name}: {description}
-
-当你需要获取外部信息或执行计算时，使用对应的工具。
-如果你已经有足够的信息回答问题，直接回答，不要调用工具。
+你是一个善于调用工具的 AI 助手。请遵循 ReAct 模式工作：
+1. 思考当前需要做什么，必要时调用工具获取信息
+2. 根据工具返回的结果推理并回答用户的问题
+3. 当工具返回的信息足够回答问题时，直接给出完整答案
+4. 如果工具返回的结果无法回答问题，尝试换一种方式搜索后再回答
+5. 搜索知识库最多 3 次，如果 3 次都找不到相关信息，就根据已有知识回答
 ```
 
-关键点：
-- Tool 描述通过 `to_openai_tool()` 自动转换为 OpenAI function calling schema，LLM 原生理解
-- LLM 的 tool choice 策略为 `auto`（默认），不由 Agent 端强制指定
-- "有足够信息就直接回答"是实际上的早停信号
-
-V2 可以考虑改进：
-- 显式化 prompt 模板，使其可配置
-- 加入 few-shot 示例，减少 LLM 选错工具的概率
-- 测试 `tool_choice="required"` 或 `tool_choice="none"` 对决策质量的影响
+V2/V3 实际未做改动：
+- prompt 仍为硬编码字符串，未做显式化模板或 few-shot
+- tool_choice 保持 `auto`，未测试其他策略
+- 但新增了代码级硬拦截 `max_search=3`（第 5 条在代码中有对应逻辑）
 
 ### Memory 策略
 
@@ -90,20 +85,10 @@ V2 可以考虑改进：
 注意：
 - 优点是实现简单，上下文完整
 - 缺点是 token 消耗随轮次线性增长，长对话 cost 高
+- V3 未做改动，RAG 优化优先级更高
 
-**V3 过渡方案（在评测系统就位前即可实现）**：
-```
-MAX_HISTORY_TURNS = 10  # 保留最近 10 轮对话
-
-def truncate_history(messages):
-    if len(messages) > MAX_HISTORY_TURNS * 2 + 1:  # +1 是 system prompt
-        # 保留 system prompt + 最近 MAX_HISTORY_TURNS 轮
-        return [messages[0]] + messages[-(MAX_HISTORY_TURNS * 2):]
-    return messages
-```
-- 简单截断，不做 summarization
-- 10 轮的 token 消耗可控（约 3-5k tokens，取决于工具调用频率）
-- V4 引入 Redis 时才做智能 summarization
+V4 计划：
+- 引入 MAX_HISTORY_TURNS 截断或 Redis 智能 summarization
 
 ### 循环终止条件
 
@@ -129,13 +114,14 @@ raise AgentError("max_steps 超限")  # 超限 → 异常
 - LLM 可能在 1 次工具调用后自行决定停止
 - 这不是代码层面的强制早停，而是 LLM 的自主决策
 
-V3 可验证的改进：
-- 测试不同 `max_steps`（5/10/15）对回答质量的影响
-- 观察 LLM 是否真的会在 1-2 步后自行停止，还是倾向于用完所有步骤
+V2/V3 实际改进：
+- 新增代码级硬拦截 `max_search=3`：搜索工具调用超过 3 次后强制 LLM 直接回答（`react_agent.py`）
+- `max_steps` 保持 15，未做对比实验（V3 重心在 RAG，Agent 参数调优排后）
 
-不支持的终止模式（V4 后考虑）：
-- Token 预算终止（到量截断返回已有内容）
-- 置信度终止（LLM 返回低 confidence 时提前退出）
+未验证的改进（V4 后考虑）：
+- 不同 `max_steps` 对比
+- Token 预算终止
+- 置信度终止
 - 用户主动中断
 
 ### Tool 执行方式
