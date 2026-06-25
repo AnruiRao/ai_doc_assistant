@@ -12,6 +12,7 @@ venv/
 data/chroma/
 data/uploads/
 data/documents.json
+data/eval_*.json
 
 # IDE
 .vscode/
