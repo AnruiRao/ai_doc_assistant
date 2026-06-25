@@ -11,7 +11,6 @@ RAGAS 评估脚本 — 跑 20 条测试 query，出 faithfulness + answer_releva
 """
 
 import json
-import os
 import sys
 import time
 from pathlib import Path
