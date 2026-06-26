@@ -95,6 +95,33 @@ class TestMergeShortChunks:
         assert "S" * 350 in result[0]
         assert "L" * 800 in result[0]
 
+    def test_no_overlap_between_chunks(self):
+        """各 chunk 不应包含相同内容（buffer 未清空 bug 的回归测试）"""
+        # 模拟 009 文档的段落长度分布：小段落逐个累积输出，每个输出只应包含新的段落
+        chunks = [
+            "A" * 22,      # 短
+            "B" * 98,      # 短
+            "C" * 5,       # 短
+            "D" * 82,      # 短
+            "E" * 154,     # 短
+            "F" * 107,     # 达阈值 (22+98+5+82+154+107=468 ≥ 400) → 输出
+            "G" * 7,       # 重新累积
+            "H" * 45,
+            "I" * 181,
+            "J" * 88,
+            "K" * 7,
+            "L" * 319,     # 达阈值 (7+45+181+88+7+319=647 ≥ 400) → 输出
+            "M" * 5,       # 残余
+        ]
+        result = self.chunker._merge_short_chunks(chunks, self.chunk_size)
+        # 验证：每个 chunk 不应包含前一个 chunk 的内容（buffer 未清空 bug 回归）
+        for i in range(1, len(result)):
+            assert result[i-1] not in result[i], f"Chunk {i} 包含了 Chunk {i-1} 的内容"
+        # 验证：所有原始内容都被保留（\n\n 分隔符导致的差异剔除）
+        for original in chunks:
+            found = any(original in c for c in result)
+            assert found, f"内容块 '{original[:20]}...' 在输出中丢失"
+
     def test_integration_with_recursive_split(self):
         """集成测试：recursive_split 输出后经合并，不应有短碎片"""
         text = """

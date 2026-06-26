@@ -1,7 +1,7 @@
 # 010: Embedding 模型升级（V3 评测驱动）
 
 - **日期**: 2026-06-26
-- **状态**: 计划中
+- **状态**: 已完成
 
 ## 背景
 
@@ -59,6 +59,46 @@ embedding_function = SentenceTransformerEmbeddingFunction(
 3. 用 `rag_tool save` 重索引全部项目文档
 4. 重跑 RAGAS 评估对比分数
 5. 若效果未达预期，考虑候选方案（bge-small / text2vec）
+
+## 实施记录
+
+### 2026-06-26：首次切换 BGE + 重索引 + RAGAS 评估
+
+#### 操作步骤
+1. `VectorStore` 构造函数中模型名改为 `BAAI/bge-base-zh-v1.5`
+2. 删除旧数据：`rm -rf data/chroma`
+3. 用 `scripts/reindex.py` 重索引全部项目文档
+4. 运行 `uv run python scripts/evaluate_rag.py` 重评
+
+#### RAGAS 评测结果（20 条 query）
+
+| 指标 | MiniLM Baseline | BGE（当前） | 变化 |
+|------|----------------|------------|------|
+| **Faithfulness** | 0.38 | **0.6353** | **↑67%** |
+| **Answer Relevancy** | 0.82 | **0.8819** | **↑7.5%** |
+
+#### 改善显著的 query
+
+| Query | MiniLM F | BGE F | 变化 |
+|-------|---------|-------|------|
+| ReAct 循环流程 | 0.083 | **0.778** | ↑↑ |
+| 为什么选 Chroma | 0.114 | **1.000** | ↑↑ 完美命中 |
+| 为什么不用 LangChain | 0.500 | **0.913** | ↑↑ |
+| Docker 方案 | 0.176 | **0.682** | ↑↑ |
+| V3 主要做什么？ | 0.143 | **0.625** | ↑↑ |
+
+#### 仍需关注的 query（Faithfulness < 0.4）
+
+| Query | F | 原因 |
+|-------|---|------|
+| chunk_size/overlap 影响 | 0.177 | 分析型问题，文档无直接答案 |
+| 异常体系可重试类 | 0.194 | 列举型，代码段落分散 |
+| VectorStore 核心方法 | 0.289 | 方法列表分散在多个 chunk |
+| 大文件处理 | 0.306 | 假设型问题 |
+
+#### 结论
+
+BGE + chunk 合并的组合拳显著提升了 Faithfulness（+67%）。仍处于低分的 4 条 query 主要是列举型和假设型问题，属于检索增强的固有限制。**V3 效果已达预期，可以收敛进入 V4。**
 
 ## 参考
 

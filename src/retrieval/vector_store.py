@@ -11,7 +11,7 @@ class VectorStore:
     def __init__(self, collection_name: str = "documents", persist_directory: str | Path = "data/chroma"):
 
         huggingface_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name="paraphrase-multilingual-MiniLM-L12-v2"
+            model_name="BAAI/bge-base-zh-v1.5"
         )
 
         Path(persist_directory).mkdir(parents=True, exist_ok=True)

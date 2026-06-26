@@ -66,6 +66,7 @@ class Chunker:
             buf_len += len(chunk)
             if buf_len >= min_threshold:
                 merged.append("\n\n".join(buffer))
+                buffer = []
                 buf_len = 0
         if buf_len != 0:
             if merged:
