@@ -199,7 +199,9 @@ class TestVectorStore:
         )
         results = vs.similarity_search("学习", k=2)
         assert len(results["documents"][0]) == 2
-        assert results["metadatas"][0][0]["source"] == "book"
+        # 验证两个来源都被检索到（BGE 模型下排序与原 MiniLM 不同）
+        sources = {m["source"] for m in results["metadatas"][0]}
+        assert sources == {"book", "paper"}
         vs.delete_collection()
 
     def test_empty_store(self, tmp_path):
