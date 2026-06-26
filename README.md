@@ -57,6 +57,10 @@ flowchart TB
     RC --> LDR
     LDR --> CHK --> VS
     VS -.->|滑动窗口上下文| RC
+
+    %% 强制布局：让 RAG 模块在下方而非角落
+    FAPI ~~~ RAG
+    SVC ~~~ RAG
 ```
 
 ### RAG 数据流
