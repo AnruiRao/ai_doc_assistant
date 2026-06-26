@@ -439,9 +439,10 @@ PYTHONPATH=src uv run pytest tests/ -v
 
 ### Phase 4：针对性优化 🟡 进行中
 
-- 低分根因分析：chunker 碎片化 + embedding 模型中文弱
-- 方案制定：见决策记录 009（chunker 合并策略）、010（embedding 选型）
-- 待执行：改进 chunker → 切换 embedding → 重索引 → 重评验证
+- ✅ 低分根因分析：chunker 碎片化 + embedding 模型中文弱
+- ✅ 方案制定：决策记录 009（chunker 合并策略）、010（embedding 选型）
+- ✅ 决策 009 实现：`_merge_short_chunks()` 阈值合并 + 11 个测试用例
+- 🔲 决策 010：切换 embedding 模型 → 重索引 → 重评验证
 
 ### 当前收敛状态（RAGAS baseline）
 

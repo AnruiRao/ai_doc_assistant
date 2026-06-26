@@ -43,4 +43,34 @@ class Chunker:
                     current = line
             if current:
                 chunks.append(current)
-        return chunks
+        return self._merge_short_chunks(chunks=chunks, chunk_size=chunk_size)
+    
+    @staticmethod
+    def _merge_short_chunks(chunks: list[str], chunk_size: int, min_chunk: float = 0.4) -> list[str]:
+        merged: list[str] = []
+        buffer: list[str] = []
+        buf_len: int = 0
+        min_threshold = int(chunk_size * min_chunk)
+
+        for chunk in chunks:
+            if len(chunk) >= min_threshold:
+                if buffer:
+                    buffer.append(chunk)
+                    merged.append("\n\n".join(buffer))
+                    buffer = []
+                    buf_len = 0
+                else:
+                    merged.append(chunk)
+                continue
+            buffer.append(chunk)
+            buf_len += len(chunk)
+            if buf_len >= min_threshold:
+                merged.append("\n\n".join(buffer))
+                buf_len = 0
+        if buf_len != 0:
+            if merged:
+               merged[-1] += "\n\n" + "\n\n".join(buffer)
+            else:
+               merged.append("\n\n".join(buffer))
+
+        return merged

@@ -284,7 +284,8 @@ src/
 - [x] 第 3 轮：滑动窗口上下文，命中 chunk 带回前后各 2 个相邻 chunk（#11、#16 ⚠️→✅）
 - [x] RAGAS 评估 pipeline 搭建（scripts/evaluate_rag.py，支持断点续评）
 - [x] Phase 2：RAGAS 评估补全，出完整 baseline（F=0.38, R=0.82, 20/20 条）
-- [ ] Phase 3：chunker 短段落合并 + embedding 模型切换（决策 009/010 制定中）
+- [x] Phase 3-1：chunker 短段落合并（决策 009 已完成）
+- [ ] Phase 3-2：embedding 模型切换（决策 010 进行中）
 - [ ] Phase 4：重索引 + 重评测验证改善
 - [ ] Phase 5（入口）：证据落地到 docs/decisions/ 和 test-queries.md
 

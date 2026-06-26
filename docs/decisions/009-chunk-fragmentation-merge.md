@@ -1,7 +1,8 @@
 # 009: Chunker 短段落合并策略
 
 - **日期**: 2026-06-26
-- **状态**: 计划中
+- **状态**: 已完成
+- **实现**: `src/ingestion/chunker.py` `_merge_short_chunks()` 方法
 
 ## 背景
 

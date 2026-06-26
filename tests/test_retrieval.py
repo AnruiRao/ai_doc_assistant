@@ -142,7 +142,9 @@ class TestRecursiveSplit:
     def test_multiple_short_paragraphs(self):
         c = Chunker()
         r = c.recursive_split("aaa\n\nbbb\n\nccc", 500)
-        assert r == ["aaa", "bbb", "ccc"]
+        # 短段落合并后为一个 chunk（min_threshold=200）
+        assert len(r) == 1
+        assert "aaa" in r[0] and "bbb" in r[0] and "ccc" in r[0]
 
     def test_long_paragraph_split_by_lines(self):
         c = Chunker()
@@ -161,9 +163,10 @@ class TestRecursiveSplit:
         c = Chunker()
         text = "short\n\n" + "\n".join(["a line"] * 90) + "\n\nend"
         r = c.recursive_split(text, 50)
-        assert r[0] == "short"
-        assert r[-1] == "end"
+        # short 和 end 因不足 min_threshold(20) 被合并到相邻大 chunk
         assert all(chunk for chunk in r)
+        assert any("short" in chunk for chunk in r)
+        assert any("end" in chunk for chunk in r)
 
 
 class TestVectorStore:
