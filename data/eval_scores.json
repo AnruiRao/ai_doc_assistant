@@ -1,0 +1,108 @@
+{
+  "summary": {
+    "faithfulness": 0.6353,
+    "answer_relevancy": 0.8819
+  },
+  "per_query": [
+    {
+      "query": "V3 主要做什么？",
+      "faithfulness": 0.625,
+      "answer_relevancy": 0.8902095251080308
+    },
+    {
+      "query": "chunk_text 和 recursive_split 有什么区别？",
+      "faithfulness": 0.9111111111111111,
+      "answer_relevancy": 0.9820200218179806
+    },
+    {
+      "query": "Agent 的 run 方法接受哪些参数？",
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.947720600871334
+    },
+    {
+      "query": "文档切分时怎么避免把一段话从中间切断？",
+      "faithfulness": 0.44,
+      "answer_relevancy": 0.8051509489940526
+    },
+    {
+      "query": "向量库存在哪个目录下？",
+      "faithfulness": 0.75,
+      "answer_relevancy": 0.6436738427502308
+    },
+    {
+      "query": "项目为什么选择 Chroma 而不是其他向量数据库？",
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.8800295455919628
+    },
+    {
+      "query": "V2 工程化阶段改了哪些核心文件？",
+      "faithfulness": 0.45121951219512196,
+      "answer_relevancy": 0.9009950056807194
+    },
+    {
+      "query": "为什么项目不直接用 LangChain？",
+      "faithfulness": 0.9130434782608695,
+      "answer_relevancy": 0.9692879707341291
+    },
+    {
+      "query": "为什么 embedding 模型选了 paraphrase-multilingual-MiniLM-L12-v2？",
+      "faithfulness": 0.9047619047619048,
+      "answer_relevancy": 0.9046039237845306
+    },
+    {
+      "query": "支持多用户同时使用吗？",
+      "faithfulness": 0.696969696969697,
+      "answer_relevancy": 0.8344275738738358
+    },
+    {
+      "query": "项目有没有 Docker 部署方案？",
+      "faithfulness": 0.6818181818181818,
+      "answer_relevancy": 0.8817150106150745
+    },
+    {
+      "query": "VectorStore 类有哪些核心方法？",
+      "faithfulness": 0.28888888888888886,
+      "answer_relevancy": 0.9555617575999777
+    },
+    {
+      "query": "ReAct Agent 的循环流程是怎样的？",
+      "faithfulness": 0.7777777777777778,
+      "answer_relevancy": 0.9372780249301801
+    },
+    {
+      "query": "RAG Tool 的 save 和 search 模式分别做了什么？",
+      "faithfulness": 0.39285714285714285,
+      "answer_relevancy": 0.9591113053037209
+    },
+    {
+      "query": "Chunker 和 VectorStore 是在哪个环节被调用的？",
+      "faithfulness": 0.8620689655172413,
+      "answer_relevancy": 0.8599798464845659
+    },
+    {
+      "query": "文档从上传到可被检索，经历了哪些步骤？",
+      "faithfulness": 0.5,
+      "answer_relevancy": 0.8392135483186899
+    },
+    {
+      "query": "如果上传一个非常大的文件，系统会怎么处理？",
+      "faithfulness": 0.30612244897959184,
+      "answer_relevancy": 0.8308270365339784
+    },
+    {
+      "query": "chunk_size 和 chunk_overlap 会影响检索结果吗？怎么影响的？",
+      "faithfulness": 0.17777777777777778,
+      "answer_relevancy": 0.9199066612256931
+    },
+    {
+      "query": "项目异常体系中有哪些可重试的异常？",
+      "faithfulness": 0.1935483870967742,
+      "answer_relevancy": 0.8131360996961657
+    },
+    {
+      "query": "Streamlit 瘦客户端模式下 UI 与后端是如何通信的？",
+      "faithfulness": 0.8333333333333334,
+      "answer_relevancy": 0.8827964225164475
+    }
+  ]
+}
