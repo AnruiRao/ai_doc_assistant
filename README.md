@@ -10,6 +10,17 @@
 
 ---
 
+## ✨ 项目亮点
+
+- **自实现 ReAct Agent** — while + tool_calls 循环，不依赖 LangChain/LlamaIndex
+- **自实现 RAG Pipeline** — loader → cleaner → chunker → vector store，全链路可控
+- **FastAPI + Streamlit 前后端分离** — 瘦客户端模式，纯 httpx 调用
+- **BGE + Chroma 中文检索** — bge-base-zh-v1.5，768 维中文语义向量
+- **RAGAS 评测驱动优化** — Faithfulness 从 0.38 提升到 0.6353（+67%）
+- **pytest + GitHub Actions** — 41 测试用例，CI 自动运行
+
+---
+
 ## 功能概览
 
 | 功能 | 说明 |
@@ -23,66 +34,69 @@
 | 🖥️ **Streamlit UI** | 瘦客户端模式，纯 httpx 调后端，秒级启动 |
 | ⚡ **异步桥接** | FastAPI 异步路由 → `asyncio.to_thread` → sync Agent |
 
+---
+
 ## 系统架构
 
 ```mermaid
-flowchart TB
-    subgraph UI["前端层"]
-        SUI["Streamlit UI (瘦客户端)<br/>httpx → FastAPI 无直接依赖"]
-    end
-    subgraph WEB["API 层"]
-        FAPI["FastAPI REST API<br/>POST /chat · POST /upload · GET /health"]
-    end
-    subgraph SVC["服务层"]
-        AG["AgentService<br/>(聊天编排)"]
-        DS["DocumentService<br/>(文档管理)"]
-    end
-    subgraph CORE["Agent 核心"]
-        RC["ReAct 循环 (自实现)<br/>思考 → 工具调用 → 观察 → ... → 回答"]
-        TR["ToolRegistry<br/>计算器 / RAG知识库"]
-        LM["BaseLLM<br/>OpenAI SDK 封装"]
-    end
-    subgraph RAG["RAG Pipeline (自实现)"]
-        LDR["Loader<br/>(pypdf)"]
-        CHK["Chunker<br/>(递归切分 + 短合并)"]
-        VS["VectorStore<br/>(Chroma + BGE)"]
-    end
-
-    SUI -->|HTTP| FAPI
-    FAPI --> AG
-    FAPI --> DS
-    AG --> RC
-    RC --> TR
-    RC --> LM
-    RC --> LDR
-    LDR --> CHK --> VS
-    VS -.->|滑动窗口上下文| RC
-
-    %% 强制布局：让 RAG 模块在下方而非角落
-    FAPI ~~~ RAG
-    SVC ~~~ RAG
+flowchart LR
+    SUI["Streamlit UI"] -->|HTTP| FAPI["FastAPI"]
+    FAPI --> AG["AgentService"]
+    FAPI --> DS["DocumentService"]
+    AG --> RC["ReAct Agent"]
+    RC --> TR["ToolRegistry"]
+    RC --> LM["BaseLLM"]
+    RC --> RT["RAG Tool"]
+    RT --> VS["VectorStore<br/>(Chroma + BGE)"]
 ```
 
-### RAG 数据流
+- **前端**：Streamlit 瘦客户端，纯 httpx 调用后端，无 Agent/Chroma 直接依赖
+- **API 层**：FastAPI 提供 REST 接口（`/chat`、`/upload`、`/health`）
+- **服务层**：AgentService 负责聊天编排，DocumentService 负责文档管理
+- **Agent 核心**：自实现 ReAct 循环，通过 ToolRegistry 调用工具，BaseLLM 封装 OpenAI SDK
+- **检索层**：RAG Tool 封装语义检索，Chroma + BGE 提供中文向量存储
 
+---
+
+## 文档处理流程（Document Pipeline）
+
+```mermaid
+flowchart LR
+    PDF["PDF / TXT"] --> LDR["Loader (pypdf)"]
+    LDR --> CLN["Cleaner"]
+    CLN --> CHK["Chunker<br/>(递归切分 + 短合并)"]
+    CHK --> EMB["BGE Embedding"]
+    EMB --> VS["Chroma VectorStore"]
 ```
-用户提问 "ReAct Agent 怎么实现的？"
-    │
-    ▼
-Agent 调用 rag_tool search
-    │
-    ▼
-Chroma 向量检索（BGE embedding） → 返回 top-4 相似 chunk
-    │
-    ▼
-滑动窗口扩展：每个命中 chunk + 前后各 2 个相邻 chunk
-    │
-    ▼
-Agent 将检索结果 + 问题送入 LLM → 生成回答
-    │
-    ▼
-输出 "ReAct 循环是 while + tool_calls 分发..."
+
+- **Loader**：支持 `.txt` / `.pdf`，自动识别格式
+- **Cleaner**：空行压缩、特殊字符过滤、全角半角统一
+- **Chunker**：递归分割（段落→句子→字符），短段落阈值合并（最小 chunk = chunk_size × 0.4）
+- **Embedding**：`bge-base-zh-v1.5`（768 维），中文语义匹配优化
+- **存储**：Chroma 持久化向量库，内容哈希 ID 自动去重
+
+---
+
+## 对话流程（Chat Flow）
+
+```mermaid
+flowchart LR
+    USER["用户"] -->|输入问题| FAPI["FastAPI"]
+    FAPI --> AGT["ReAct Agent"]
+    AGT --> TR["ToolRegistry"]
+    TR --> RT["RAG Tool"]
+    RT --> VS["VectorStore<br/>(Chroma + BGE)"]
+    VS -->|检索结果 + 滑动窗口上下文| AGT
+    AGT --> LLM["LLM (千问/DeepSeek)"]
+    LLM -->|回答| USER
 ```
+
+- 用户输入问题 → FastAPI 接收 → ReAct Agent 启动循环
+- Agent 调用 RAG Tool 检索相关文档块（top-4 + 前后各 2 个相邻 chunk）
+- 检索结果拼接上下文送入 LLM → 生成回答返回用户
+- 滑动窗口上下文确保单 chunk 信息不完整时仍有足够的背景
+
+---
 
 ## 快速开始
 
@@ -116,6 +130,24 @@ curl -X POST localhost:8000/chat \
 | `LLM_API_KEY` | API Key | `sk-xxx` |
 | `LLM_BASE_URL` | API 地址 | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
 | `LLM_MODEL` | 模型名 | `qwen3.6-max-preview`（默认） |
+
+---
+
+## 技术栈
+
+| 层 | 技术 | 说明 |
+|----|------|------|
+| **Agent 框架** | 自实现 ReAct | 不依赖 LangChain/LlamaIndex，从零实现 tool_calls 循环 |
+| **RAG Pipeline** | 自实现 | loader → cleaner → chunker → vector store，全链路可控 |
+| **向量库** | Chroma | 本地持久化，零配置，BGE 中文 embedding（768 维） |
+| **LLM 协议** | OpenAI 兼容 | 支持千问 / DeepSeek / GLM 等国产模型 |
+| **后端 API** | FastAPI | 异步路由 + 服务层 + CORS |
+| **前端** | Streamlit | 瘦客户端模式，纯 httpx 调用，无后端依赖 |
+| **测试** | pytest + GitHub Actions | 41 测试用例，CI 自动运行 |
+| **日志** | structlog | 开发彩显 / 生产 JSON，结构化追踪 |
+| **异常** | 树形体系 | 7 类异常，区分可重试 / 不可重试 |
+
+---
 
 ## 评测结果
 
@@ -164,7 +196,12 @@ curl -X POST localhost:8000/chat \
 
 详细评估脚本见 [`scripts/evaluate_rag.py`](scripts/evaluate_rag.py)，评分数据见 [`data/eval_scores.json`](data/eval_scores.json)。
 
+---
+
 ## 项目结构
+
+<details>
+<summary><strong>点击展开项目目录</strong></summary>
 
 ```
 ai_doc_assistant/
@@ -220,19 +257,9 @@ ai_doc_assistant/
 └── LICENSE               MIT License
 ```
 
-## 技术栈
+</details>
 
-| 层 | 技术 | 说明 |
-|----|------|------|
-| **Agent 框架** | 自实现 ReAct | 不依赖 LangChain/LlamaIndex，从零实现 tool_calls 循环 |
-| **RAG Pipeline** | 自实现 | loader → cleaner → chunker → vector store，全链路可控 |
-| **向量库** | Chroma | 本地持久化，零配置，BGE 中文 embedding（768 维） |
-| **LLM 协议** | OpenAI 兼容 | 支持千问 / DeepSeek / GLM 等国产模型 |
-| **后端 API** | FastAPI | 异步路由 + 服务层 + CORS |
-| **前端** | Streamlit | 瘦客户端模式，纯 httpx 调用，无后端依赖 |
-| **测试** | pytest + GitHub Actions | 41 测试用例，CI 自动运行 |
-| **日志** | structlog | 开发彩显 / 生产 JSON，结构化追踪 |
-| **异常** | 树形体系 | 7 类异常，区分可重试 / 不可重试 |
+---
 
 ## 发展阶段
 
@@ -241,7 +268,9 @@ ai_doc_assistant/
 | **V1 Demo** | ✅ | Agent 核心 + RAG 检索 + Streamlit UI 全链路跑通 |
 | **V2 工程化** | ✅ | 异常/重试/日志 → FastAPI/异步桥接 → 服务层 → 测试+CI |
 | **V3 RAG 优化** | ✅ | chunk 短合并 → BGE embedding → RAGAS 评测（F=0.38→0.6353） |
-| **V4 生产化** | 🔲 规划中 | Docker 部署 * 多用户 * 流式输出 * LangChain 适配层 |
+| **V4 生产化** | 🔲 规划中 | Docker 部署 / 多用户 / 流式输出 / LangChain 适配层 |
+
+---
 
 ## 决策记录
 
@@ -257,6 +286,8 @@ ai_doc_assistant/
 - [008: V3 滑动窗口上下文](docs/decisions/008-sliding-window-context.md)
 - [009: Chunker 短段落合并](docs/decisions/009-chunk-fragmentation-merge.md)
 - [010: Embedding 升级 BGE](docs/decisions/010-embedding-upgrade-v3.md)
+
+---
 
 ## License
 
