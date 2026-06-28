@@ -1,108 +1,108 @@
 {
   "summary": {
-    "faithfulness": 0.7202,
-    "answer_relevancy": 0.8521
+    "faithfulness": 0.7028,
+    "answer_relevancy": 0.861
   },
   "per_query": [
     {
       "query": "V3 主要做什么？",
-      "faithfulness": 0.8518518518518519,
-      "answer_relevancy": 0.6918343115917643
+      "faithfulness": 0.775,
+      "answer_relevancy": 0.8387989223847265
     },
     {
       "query": "chunk_text 和 recursive_split 有什么区别？",
-      "faithfulness": 1.0,
-      "answer_relevancy": 0.884153997449154
+      "faithfulness": 0.9,
+      "answer_relevancy": 0.9402333678473779
     },
     {
       "query": "Agent 的 run 方法接受哪些参数？",
-      "faithfulness": 0.35714285714285715,
-      "answer_relevancy": 0.913608223060089
+      "faithfulness": 0.3888888888888889,
+      "answer_relevancy": 0.9137418850323306
     },
     {
       "query": "文档切分时怎么避免把一段话从中间切断？",
-      "faithfulness": 0.8333333333333334,
-      "answer_relevancy": 0.7853451370072625
+      "faithfulness": 0.6875,
+      "answer_relevancy": 0.8534104548938379
     },
     {
       "query": "向量库存在哪个目录下？",
-      "faithfulness": 0.75,
-      "answer_relevancy": 0.5898981699658613
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.5707492674555568
     },
     {
       "query": "项目为什么选择 Chroma 而不是其他向量数据库？",
-      "faithfulness": 1.0,
-      "answer_relevancy": 0.8800295455919628
+      "faithfulness": 0.9375,
+      "answer_relevancy": 0.9100422284014421
     },
     {
       "query": "V2 工程化阶段改了哪些核心文件？",
-      "faithfulness": 0.6481481481481481,
-      "answer_relevancy": 0.9029284663155792
+      "faithfulness": 0.6,
+      "answer_relevancy": 0.8646638285717162
     },
     {
       "query": "为什么项目不直接用 LangChain？",
       "faithfulness": 1.0,
-      "answer_relevancy": 0.9563678149732563
+      "answer_relevancy": 0.9563441171100647
     },
     {
       "query": "为什么 embedding 模型选了 paraphrase-multilingual-MiniLM-L12-v2？",
-      "faithfulness": 0.9032258064516129,
-      "answer_relevancy": 0.8954773984559599
+      "faithfulness": 0.9583333333333334,
+      "answer_relevancy": 0.8615394477758013
     },
     {
       "query": "支持多用户同时使用吗？",
-      "faithfulness": 0.8695652173913043,
-      "answer_relevancy": 0.8815537808965542
+      "faithfulness": 0.9,
+      "answer_relevancy": 0.7977976523379527
     },
     {
       "query": "项目有没有 Docker 部署方案？",
-      "faithfulness": 0.7142857142857143,
-      "answer_relevancy": 0.9186416198047622
+      "faithfulness": 0.6785714285714286,
+      "answer_relevancy": 0.866050050796712
     },
     {
       "query": "VectorStore 类有哪些核心方法？",
-      "faithfulness": 0.65625,
-      "answer_relevancy": 0.9555548572370213
+      "faithfulness": 0.4827586206896552,
+      "answer_relevancy": 0.9555868936252302
     },
     {
       "query": "ReAct Agent 的循环流程是怎样的？",
-      "faithfulness": 0.9642857142857143,
-      "answer_relevancy": 0.9016094014850634
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.8924170165572459
     },
     {
       "query": "RAG Tool 的 save 和 search 模式分别做了什么？",
-      "faithfulness": 0.7894736842105263,
-      "answer_relevancy": 0.9445431415371259
+      "faithfulness": 0.9130434782608695,
+      "answer_relevancy": 0.948605148214423
     },
     {
       "query": "Chunker 和 VectorStore 是在哪个环节被调用的？",
-      "faithfulness": 0.7142857142857143,
-      "answer_relevancy": 0.8299707154757657
+      "faithfulness": 0.5,
+      "answer_relevancy": 0.8448325096734627
     },
     {
       "query": "文档从上传到可被检索，经历了哪些步骤？",
-      "faithfulness": 0.3103448275862069,
-      "answer_relevancy": 0.711912149923665
+      "faithfulness": 0.5333333333333333,
+      "answer_relevancy": 0.8937498994510847
     },
     {
       "query": "如果上传一个非常大的文件，系统会怎么处理？",
-      "faithfulness": 0.34210526315789475,
-      "answer_relevancy": 0.8274260054494008
+      "faithfulness": 0.43478260869565216,
+      "answer_relevancy": 0.7053385509348281
     },
     {
       "query": "chunk_size 和 chunk_overlap 会影响检索结果吗？怎么影响的？",
-      "faithfulness": 0.38461538461538464,
-      "answer_relevancy": 0.9199277836318634
+      "faithfulness": 0.0,
+      "answer_relevancy": 0.9052129067300726
     },
     {
       "query": "项目异常体系中有哪些可重试的异常？",
-      "faithfulness": 0.5652173913043478,
-      "answer_relevancy": 0.7925000342295677
+      "faithfulness": 0.6666666666666666,
+      "answer_relevancy": 0.8131360996961657
     },
     {
       "query": "Streamlit 瘦客户端模式下 UI 与后端是如何通信的？",
-      "faithfulness": 0.75,
-      "answer_relevancy": 0.859379432439438
+      "faithfulness": 0.7,
+      "answer_relevancy": 0.8869058337586732
     }
   ]
 }

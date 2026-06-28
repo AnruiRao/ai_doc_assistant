@@ -1,4 +1,7 @@
 from uuid import uuid4
+from core.llm import BaseLLM
+from core.config import Settings
+from retrieval.query_rewriter import QueryRewriter
 from tools.base import Tool
 from pydantic import BaseModel, Field
 from typing import Literal
@@ -31,7 +34,55 @@ class RagTool(Tool):
             description="RAG 知识库工具：save 模式存储文档并建立向量索引，search 模式检索相关内容， delete 模式删除向量库",
             input_model=RagToolInput,
         )
-        
+        self._rewrite = None
+
+    def _get_rewrite(self) -> QueryRewriter | None:
+        config = Settings.from_env()
+        if not config.enable_query_rewrite:
+            return None
+        if self._rewrite is None:
+            llm = BaseLLM(config=config)
+            self._rewrite = QueryRewriter(llm)
+        return self._rewrite
+
+    def search_raw(
+        self,
+        query: str,
+        k: int = 10,
+        collection_name: str = "documents",
+        persist_directory: str = "data/chroma",
+    ) -> tuple[list[str], list[dict]]:
+        """核心检索逻辑：rewrite → 多路检索 → 去重合并。
+
+        返回 (docs_list, metas_list)，不做滑动窗口、不格式化。
+        评测脚本和 run() 共用此入口，后续加 reranker 只改这里。
+        """
+        vs = VectorStore(collection_name=collection_name, persist_directory=persist_directory)
+
+        rewriter = self._get_rewrite()
+        sub_queries = rewriter.rewrite(query=query) if rewriter else [query]
+
+        all_docs = []
+        all_metas = []
+        seen = set()
+
+        for sq in sub_queries:
+            r = vs.similarity_search(query=sq, k=k)
+            docs_batch = r["documents"][0] if r.get("documents") else []
+            if not docs_batch:
+                continue
+            metas_batch = r["metadatas"][0] if r.get("metadatas") else [None] * len(docs_batch)
+            for doc, meta in zip(docs_batch, metas_batch):
+                src = meta.get("source", "") if meta else ""
+                ci = meta.get("chunk_index", -1) if meta else -1
+                key = (src, ci)
+                if key not in seen:
+                    seen.add(key)
+                    all_docs.append(doc)
+                    all_metas.append(meta)
+
+        return all_docs, all_metas
+
     def run(
         self,
         use_for: Literal["save", "search", "delete", "list"],
@@ -58,7 +109,7 @@ class RagTool(Tool):
 
             vs = VectorStore(collection_name=collection_name, persist_directory=persist_directory)
             vs.add_documents(documents=chunks, ids=ids, metadatas=metadatas)
-            
+
             logger.info("调用工具成功",use_for = use_for)
             return f"已将文档存入集合 '{collection_name}'，共 {len(chunks)} 个片段"
 
@@ -66,13 +117,17 @@ class RagTool(Tool):
             if not query:
                 return "错误：search 模式需要提供 query 参数"
 
-            vs = VectorStore(collection_name=collection_name, persist_directory=persist_directory)
-            results = vs.similarity_search(query=query, k=k)
-            docs = results["documents"][0] if results.get("documents") else []
+            docs, metas = self.search_raw(
+                query=query, k=k,
+                collection_name=collection_name,
+                persist_directory=persist_directory,
+            )
+
             if not docs:
                 return "未检索到相关内容"
 
-            metas = results["metadatas"][0] if results.get("metadatas") else [None] * len(docs)
+            vs = VectorStore(collection_name=collection_name, persist_directory=persist_directory)
+
             lines = []
             seen_ids = set()
             for doc, meta in zip(docs, metas):
@@ -111,7 +166,7 @@ class RagTool(Tool):
 
             logger.info("调用工具成功", use_for=use_for)
             return f"检索到 {len(docs)} 条结果（含上下文）:\n\n" + "\n---\n".join(lines)
-        
+
         if use_for == "delete":
             vs = VectorStore(collection_name=collection_name, persist_directory=persist_directory)
             count = vs.count()

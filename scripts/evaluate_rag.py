@@ -11,6 +11,7 @@ RAGAS 评估脚本 — 跑 20 条测试 query，出 faithfulness + answer_releva
 """
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -24,14 +25,12 @@ load_dotenv()
 # RAGAS 0.4.x
 from ragas.metrics.collections.faithfulness.metric import Faithfulness
 from ragas.metrics.collections.answer_relevancy.metric import AnswerRelevancy
-from ragas.llms import llm_factory
 
 from core.config import Settings
 from core.llm import BaseLLM
 from tools.registry import ToolRegistry
 from tools.impl.rag_tool import RagTool
 from agents.react_agent import ReactAgent
-from retrieval.vector_store import VectorStore
 
 
 def parse_queries(md_path: str) -> list[str]:
@@ -72,25 +71,24 @@ def main():
         answers = [d["answer"] for d in raw_data]
         contexts = [d["contexts"] for d in raw_data]
     else:
-        # ---- 初始化 Agent & VectorStore ----
+        # ---- 初始化 Agent ----
         llm = BaseLLM(config=config)
         registry = ToolRegistry()
-        registry.register_tool(RagTool())
+        rag_tool = RagTool()
+        registry.register_tool(rag_tool)
         agent = ReactAgent(llm=llm, tool_registry=registry, max_steps=15)
-        vs = VectorStore()
-        print("🤖 Agent & VectorStore 初始化完成\n")
+        print("🤖 Agent 初始化完成\n")
 
         questions, answers, contexts = [], [], []
         for i, q in enumerate(queries, 1):
             print(f"[{i}/{len(queries)}] Query: {q[:50]}...")
             start = time.time()
 
-            # 获取 Agent 回答
+            # 获取 Agent 回答（内部通过 rag_tool.search 走 rewrite）
             answer = agent.run(q, history=[])
 
-            # 获取检索上下文（与 Agent 内部 search 一致）
-            results = vs.similarity_search(query=q, k=4)
-            docs = results["documents"][0] if results.get("documents") else []
+            # 获取检索上下文：复用 rag_tool.search_raw，与 Agent 内部检索一致
+            docs, _ = rag_tool.search_raw(query=q, k=4)
 
             questions.append(q)
             answers.append(answer)
@@ -118,23 +116,31 @@ def main():
 
     import asyncio
     from openai import AsyncOpenAI
+    from ragas.llms import llm_factory
 
-    openai_client = AsyncOpenAI(api_key=config.api_key, base_url=config.base_url)
-
+    # Judge: LLM 评分 — 用 RAGAS 的 llm_factory 包装 AsyncOpenAI client
     judge_llm = llm_factory(
-        model=config.model,
-        client=openai_client,
+        config.model,
+        client=AsyncOpenAI(
+            api_key=config.api_key,
+            base_url=config.base_url,
+        ),
         temperature=0,
-        max_tokens=4096,
+        max_tokens=int(os.getenv("RAGAS_MAX_TOKENS", "32768")),
+        extra_body={"thinking": {"type": "disabled"}},
     )
 
-    # 实例化 metrics（embeddings 也用 async client）
+    # Embedding: 单独渠道（支持与 Judge 不同平台）
+    embed_client = AsyncOpenAI(
+        api_key=os.getenv("EMBEDDING_API_KEY", config.api_key),
+        base_url=os.getenv("EMBEDDING_BASE_URL", config.base_url),
+    )
     from ragas.embeddings.openai_provider import OpenAIEmbeddings as RagasOpenAIEmbeddings
 
     faithfulness = Faithfulness(llm=judge_llm)
     answer_relevancy = AnswerRelevancy(
         llm=judge_llm,
-        embeddings=RagasOpenAIEmbeddings(client=openai_client, model="text-embedding-v3"),
+        embeddings=RagasOpenAIEmbeddings(client=embed_client, model=os.getenv("EMBEDDING_MODEL", "text-embedding-v3")),
     )
 
     # 断点续评：加载已有评分，已有则跳过

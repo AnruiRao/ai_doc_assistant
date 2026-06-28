@@ -36,6 +36,8 @@
 | 2026-06-25 | 滑动窗口上下文（每个命中 chunk 带回前后各 2 个相邻 chunk） | #11、#16 从 ⚠️→✅；#3（代码检索）一并改善 |
 | 2026-06-25 | 搭建 RAGAS 评估 pipeline（`scripts/evaluate_rag.py`） | 出 baseline 前 6 条 |
 | 2026-06-26 | 修复 RAGAS 断点续评 Bug（0.0 掩盖评分失败），补全 20 条全量评估 | 20/20 全部出分，baseline F=0.38 R=0.82 |
+| 2026-06-28 | V3 实验 A1 Query Rewrite 基线（Agent: qwen3.6-plus-2026-04-02, Judge: 同） | F=0.484 R=0.910. 基线已备份至 `data/eval_scores_v3_baseline.json` |
+| 2026-06-28 | **A1 Query Rewrite 开启**（Agent: qwen3.6-plus, Judge: 同） | **F=0.570 R=0.881**. 列举型大幅改善: #12(0.474→0.900), #14(0.643→0.889), #19(0.500→0.900). #13退化(0.735→0.250)疑似过度拆分. 结果已备份至 `data/eval_scores_v3_qr.json` |
 
 ## 质量标记说明
 

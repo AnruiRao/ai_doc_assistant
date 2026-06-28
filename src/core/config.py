@@ -17,6 +17,7 @@ class Settings(BaseModel):
     model: str = DEFAULT_MODEL
     temperature: float = 0.7
     timeout: int = 60
+    enable_query_rewrite: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -25,4 +26,5 @@ class Settings(BaseModel):
             api_key=os.getenv("LLM_API_KEY", ""),
             base_url=os.getenv("LLM_BASE_URL", ""),
             model=os.getenv("LLM_MODEL", DEFAULT_MODEL),
+            enable_query_rewrite=os.getenv("ENABLE_QUERY_REWRITE", False)
         )
