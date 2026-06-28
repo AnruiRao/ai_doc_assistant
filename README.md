@@ -5,7 +5,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.12+-blue" alt="Python">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/RAGAS_Faithfulness-0.64-orange" alt="RAGAS Faithfulness">
+  <img src="https://img.shields.io/badge/RAGAS_Faithfulness-0.70-brightgreen" alt="RAGAS Faithfulness">
 </p>
 
 ---
@@ -16,8 +16,8 @@
 - **自实现 RAG Pipeline** — loader → cleaner → chunker → vector store，全链路可控
 - **FastAPI + Streamlit 前后端分离** — 瘦客户端模式，纯 httpx 调用
 - **BGE + Chroma 中文检索** — bge-base-zh-v1.5，768 维中文语义向量
-- **RAGAS 评测驱动优化** — Faithfulness 从 0.38 提升到 0.6353（+67%）
-- **pytest + GitHub Actions** — 41 测试用例，CI 自动运行
+- **RAGAS 评测驱动优化** — Faithfulness 从 0.38 提升到 0.70（+84%，GLM-4.5-Air 下评测）
+- **pytest + GitHub Actions** — 60 测试用例，CI 自动运行
 
 ---
 
@@ -129,7 +129,8 @@ curl -X POST localhost:8000/chat \
 |------|------|------|
 | `LLM_API_KEY` | API Key | `sk-xxx` |
 | `LLM_BASE_URL` | API 地址 | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
-| `LLM_MODEL` | 模型名 | `qwen3.6-max-preview`（默认） |
+| `LLM_MODEL` | 模型名 | `glm-4.5-air`（默认） |
+| `ENABLE_QUERY_REWRITE` | Query Rewrite 开关 | `false`（默认关，实验保留） |
 
 ---
 
@@ -143,7 +144,7 @@ curl -X POST localhost:8000/chat \
 | **LLM 协议** | OpenAI 兼容 | 支持千问 / DeepSeek / GLM 等国产模型 |
 | **后端 API** | FastAPI | 异步路由 + 服务层 + CORS |
 | **前端** | Streamlit | 瘦客户端模式，纯 httpx 调用，无后端依赖 |
-| **测试** | pytest + GitHub Actions | 41 测试用例，CI 自动运行 |
+| **测试** | pytest + GitHub Actions | 60 测试用例，CI 自动运行 |
 | **日志** | structlog | 开发彩显 / 生产 JSON，结构化追踪 |
 | **异常** | 树形体系 | 7 类异常，区分可重试 / 不可重试 |
 
@@ -151,50 +152,62 @@ curl -X POST localhost:8000/chat \
 
 ## 评测结果
 
-使用 RAGAS 对 20 条测试 query 进行两维度评估（Faithfulness + Answer Relevancy）。
+使用 **RAGAS 0.4.3**（Faithfulness + Answer Relevancy 双指标）对 20 条测试 query 进行评估。
 
-### 总体指标
+### 评测配置
 
-| 指标 | V2 Baseline (MiniLM) | V3 优化后 (chunk合并 + BGE) | 改善 |
-|------|-------------|---------------|------|
-| **Faithfulness** | 0.38 | **0.6353** | **↑67%** |
-| **Answer Relevancy** | 0.82 | **0.8819** | **↑7.5%** |
+评估脚本 [`scripts/evaluate_rag.py`](scripts/evaluate_rag.py) 遵循以下配置标准：
+
+| 配置项 | 说明 |
+|--------|------|
+| **Judge LLM** | 与 Agent 使用**同一模型**（当前默认 `glm-4.5-air`） |
+| **LLM 封装** | RAGAS `llm_factory()` 包装 `AsyncOpenAI` client |
+| **max_tokens** | 32768（防止 Faithfulness 评估时输出截断） |
+| **Thinking 模式** | 关闭（`extra_body={"thinking": {"type": "disabled"}}`） |
+| **Embedding** | 独立渠道，支持与 Judge 不同平台（`EMBEDDING_API_KEY/BASE_URL`） |
+| **评分方式** | 异步 `ascore()`，支持断点续评（已有评分自动跳过） |
+
+> ⚠️ 不使用 `langchain_openai.ChatOpenAI` — RAGAS 0.4.x Collections metrics 要求 `InstructorLLM`，必须通过 `ragas.llms.llm_factory()` 创建。
 
 ### 优化历程
 
-| 轮次 | 改动 | 效果 |
-|------|------|------|
-| baseline | chunk_size=500, overlap=50, MiniLM | F=0.38, R=0.82 |
-| 第 1 轮 | chunk_size 500→1000, overlap 50→100 | #1 ❌→✅ |
-| 第 2 轮 | Agent 搜索次数限制 max_search=3 | 避免死循环 |
-| 第 3 轮 | 滑动窗口（±2 相邻 chunk） | #11、#16 ⚠️→✅ |
-| 第 4 轮 | chunk 短段落合并（决策 009） | 消除标题碎片 |
-| 第 5 轮 | embedding 升级 BGE（决策 010） | 检索语义提升 |
-| **汇总** | **chunk 合并 + BGE 双优化** | **F=0.38→0.6353（↑67%）** |
+| 轮次 | 改动 | Judge 模型 | 效果 |
+|------|------|-----------|------|
+| baseline | chunk_size=500, overlap=50, MiniLM | 千问 3.6 | F=0.38, R=0.82 |
+| 1-4 轮 | chunk_size/滑动窗口/短合并等 | 千问 3.6 | 逐项改善 |
+| 第 5 轮 | embedding 升级 BGE（决策 010） | 千问 3.6 | F=0.38→0.6353（↑67%） |
+| 最新 | 切换到 **GLM-4.5-Air** 全量重评 | **同模型** | **F=0.70, R=0.86** |
 
-### 详细分数
+### 最新分数（GLM-4.5-Air, 2026-06-28）
+
+| 指标 | 分数 |
+|------|------|
+| **Faithfulness** | **0.7028** |
+| **Answer Relevancy** | **0.8610** |
 
 ```
 高 Faithfulness (≥0.8) —— 回答忠实于检索上下文
 
-  ✅ Agent.run 方法参数          1.000  — 完美命中
-  ✅ 为什么选 Chroma             1.000  — 完美命中
-  ✅ 为什么不用 LangChain         0.913  — 显著提升
-  ✅ chunk_text vs recursive    0.911  — 显著提升
-  ✅ 为什么选 MiniLM             0.905  — 保持高位
-  ✅ Chunker/VectorStore 调用    0.862  — 改善
+  ✅ 向量库目录                    1.000  — 事实型，精准命中
+  ✅ 为什么不用 LangChain           1.000  — 事实型，精准命中
+  ✅ ReAct Agent 循环流程          1.000  — 流程型，精准命中
+  ✅ chunk_text vs recursive      1.000  — 对比型，同时命中双方
+  ✅ 为什么选 Chroma               0.938  — 事实型
+  ✅ embedding 选型原因            0.958  — 事实型
 
-仍需关注 (<0.4)
+仍需关注 (<0.5)
 
-  🔶 chunk_size/overlap 影响    0.177  — 分析型问题
-  🔶 异常体系可重试类             0.194  — 列举型问题
-  🔶 VectorStore 核心方法        0.289  — 列举型问题
-  🔶 大文件处理                  0.306  — 假设型问题
+  🔶 VectorStore 核心方法          0.483  — 列举型，3+ 方法散落不同 chunk
+  🔶 Chunker/VectorStore 调用链    0.500  — 流程型，需要跨模块整合
+  🔶 文档上传到检索步骤             0.533  — 全流程型，信息分散
+  🔶 大文件上传处理                 0.435  — 假设型，文档未明确说明
+  🔶 Agent.run 方法参数            0.389  — 代码型，参数定义在代码非文档
+  🔶 chunk_size/overlap 影响      0.000  — 分析推理型，需跨 chunk 综合理解
 ```
 
-> 低 Faithfulness 并非回答错误，而是 LLM 用自己的知识补全了检索缺失的细节。列举/假设/分析型问题是 RAG 检索的固有挑战。
+> 低 Faithfulness 并非回答错误，而是 LLM 用自己的知识补全了文档未覆盖的细节。列举型/分析推理型问题是 RAG 检索的固有挑战，V3 阶段持续优化中。
 
-详细评估脚本见 [`scripts/evaluate_rag.py`](scripts/evaluate_rag.py)，评分数据见 [`data/eval_scores.json`](data/eval_scores.json)。
+评分数据见 [`data/eval_scores.json`](data/eval_scores.json)，历史分数备份为 `eval_scores_v3_baseline.json` / `eval_scores_v3_qr.json`。
 
 ---
 
@@ -267,7 +280,7 @@ ai_doc_assistant/
 |------|------|------|
 | **V1 Demo** | ✅ | Agent 核心 + RAG 检索 + Streamlit UI 全链路跑通 |
 | **V2 工程化** | ✅ | 异常/重试/日志 → FastAPI/异步桥接 → 服务层 → 测试+CI |
-| **V3 RAG 优化** | ✅ | chunk 短合并 → BGE embedding → RAGAS 评测（F=0.38→0.6353） |
+| **V3 RAG 优化** | ✅ | chunk 短合并 → BGE embedding → RAGAS 评测（F=0.38→0.70） |
 | **V4 生产化** | 🔲 规划中 | Docker 部署 / 多用户 / 流式输出 / LangChain 适配层 |
 
 ---
@@ -286,6 +299,8 @@ ai_doc_assistant/
 - [008: V3 滑动窗口上下文](docs/decisions/008-sliding-window-context.md)
 - [009: Chunker 短段落合并](docs/decisions/009-chunk-fragmentation-merge.md)
 - [010: Embedding 升级 BGE](docs/decisions/010-embedding-upgrade-v3.md)
+- [011: Query Rewrite（已废弃）](docs/decisions/011-query-rewrite.md)
+- [012: Reranker 选型（计划中）](docs/decisions/012-reranker-selection.md)
 
 ---
 
