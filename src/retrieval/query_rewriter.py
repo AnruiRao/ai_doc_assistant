@@ -1,6 +1,5 @@
 
 import json
-from core.config import Settings
 from core.llm import BaseLLM
 
 REWRITE_PROMPT = """
