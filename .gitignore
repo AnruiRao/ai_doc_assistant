@@ -12,7 +12,8 @@ venv/
 data/chroma/
 data/uploads/
 data/documents.json
-data/eval_raw.json
+data/eval_raw*.json
+data/eval_scores_v3_*.json
 
 # IDE
 .vscode/

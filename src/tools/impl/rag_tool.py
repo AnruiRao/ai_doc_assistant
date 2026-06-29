@@ -2,6 +2,7 @@ from uuid import uuid4
 from core.llm import BaseLLM
 from core.config import Settings
 from retrieval.query_rewriter import QueryRewriter
+from retrieval.reranker import Reranker
 from tools.base import Tool
 from pydantic import BaseModel, Field
 from typing import Literal
@@ -35,6 +36,7 @@ class RagTool(Tool):
             input_model=RagToolInput,
         )
         self._rewrite = None
+        self._reranker = None
 
     def _get_rewrite(self) -> QueryRewriter | None:
         config = Settings.from_env()
@@ -44,6 +46,14 @@ class RagTool(Tool):
             llm = BaseLLM(config=config)
             self._rewrite = QueryRewriter(llm)
         return self._rewrite
+
+    def _get_reranker(self) -> Reranker | None:
+        config = Settings.from_env()
+        if not config.enable_reranker:
+            return None
+        if self._reranker is None:
+            self._reranker = Reranker()
+        return self._reranker
 
     def search_raw(
         self,
@@ -59,6 +69,9 @@ class RagTool(Tool):
         """
         vs = VectorStore(collection_name=collection_name, persist_directory=persist_directory)
 
+        reranker = self._get_reranker()
+        recall_k = 20 if reranker is not None else k
+
         rewriter = self._get_rewrite()
         sub_queries = rewriter.rewrite(query=query) if rewriter else [query]
 
@@ -67,7 +80,7 @@ class RagTool(Tool):
         seen = set()
 
         for sq in sub_queries:
-            r = vs.similarity_search(query=sq, k=k)
+            r = vs.similarity_search(query=sq, k=recall_k)
             docs_batch = r["documents"][0] if r.get("documents") else []
             if not docs_batch:
                 continue
@@ -80,6 +93,20 @@ class RagTool(Tool):
                     seen.add(key)
                     all_docs.append(doc)
                     all_metas.append(meta)
+        # TODO: 进行RRF粗排
+
+        # 去重合并后，reranker 精排取 top-k
+        if reranker is not None and len(all_docs) > k:
+            doc_to_meta = {}
+            for doc, meta in zip(all_docs, all_metas):
+                doc_to_meta.setdefault(doc, meta)
+
+            reranked = reranker.rerank(query=query,documents=all_docs, top_k=k)
+
+            all_docs = [doc for doc, _ in reranked]
+            all_metas = [doc_to_meta.get(doc, {}) for doc in all_docs]
+
+        # TODO: 将返回文本控制在k条
 
         return all_docs, all_metas
 

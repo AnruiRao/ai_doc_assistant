@@ -63,6 +63,7 @@ def main():
     # ---- 收集数据（若已有原始数据则跳过） ----
     raw_path = output_dir / "eval_raw.json"
     config = Settings.from_env()
+    config.temperature = 0.0  # 评测需要确定性，覆盖为 0
     if raw_path.exists():
         print("💡 已有原始数据，跳过 Agent 调用阶段\n")
         with open(raw_path) as f:
