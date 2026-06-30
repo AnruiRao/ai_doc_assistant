@@ -3,6 +3,7 @@ from core.llm import BaseLLM
 from core.config import Settings
 from retrieval.query_rewriter import QueryRewriter
 from retrieval.reranker import Reranker
+from retrieval.rrf import rrf_fuse
 from tools.base import Tool
 from pydantic import BaseModel, Field
 from typing import Literal
@@ -62,7 +63,7 @@ class RagTool(Tool):
         collection_name: str = "documents",
         persist_directory: str = "data/chroma",
     ) -> tuple[list[str], list[dict]]:
-        """核心检索逻辑：rewrite → 多路检索 → 去重合并。
+        """核心检索逻辑：rewrite → 多路检索 → RRF 融合 → reranker 精排。
 
         返回 (docs_list, metas_list)，不做滑动窗口、不格式化。
         评测脚本和 run() 共用此入口，后续加 reranker 只改这里。
@@ -75,25 +76,18 @@ class RagTool(Tool):
         rewriter = self._get_rewrite()
         sub_queries = rewriter.rewrite(query=query) if rewriter else [query]
 
-        all_docs = []
-        all_metas = []
-        seen = set()
-
+        ranked_lists = []
         for sq in sub_queries:
             r = vs.similarity_search(query=sq, k=recall_k)
             docs_batch = r["documents"][0] if r.get("documents") else []
             if not docs_batch:
+                ranked_lists.append([])
                 continue
             metas_batch = r["metadatas"][0] if r.get("metadatas") else [None] * len(docs_batch)
-            for doc, meta in zip(docs_batch, metas_batch):
-                src = meta.get("source", "") if meta else ""
-                ci = meta.get("chunk_index", -1) if meta else -1
-                key = (src, ci)
-                if key not in seen:
-                    seen.add(key)
-                    all_docs.append(doc)
-                    all_metas.append(meta)
-        # TODO: 进行RRF粗排
+            ranked_lists.append(list(zip(docs_batch, metas_batch)))
+
+        # RRF 融合：多条子查询时自动融合，单条时原样返回
+        all_docs, all_metas = rrf_fuse(ranked_lists, top_k=recall_k)
 
         # 去重合并后，reranker 精排取 top-k
         if reranker is not None and len(all_docs) > k:
@@ -101,7 +95,7 @@ class RagTool(Tool):
             for doc, meta in zip(all_docs, all_metas):
                 doc_to_meta.setdefault(doc, meta)
 
-            reranked = reranker.rerank(query=query,documents=all_docs, top_k=k)
+            reranked = reranker.rerank(query=query, documents=all_docs, top_k=k)
 
             all_docs = [doc for doc, _ in reranked]
             all_metas = [doc_to_meta.get(doc, {}) for doc in all_docs]

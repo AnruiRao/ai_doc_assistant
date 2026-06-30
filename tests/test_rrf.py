@@ -161,3 +161,84 @@ class TestRrfFuse:
         assert len(docs) == 2
         assert "docA" in docs
         assert "docB" in docs
+
+
+from unittest.mock import Mock, patch
+from tools.impl.rag_tool import RagTool
+
+
+class TestSearchRawRrf:
+    def setup_method(self):
+        self.tool = RagTool()
+        self.tool._reranker = None
+        self.tool._rewrite = None
+
+    def test_search_raw_rrf_called_with_multiple_queries(self):
+        """多条子查询 → rrf_fuse 被调用"""
+        mock_vs = Mock()
+        mock_vs.similarity_search.return_value = {
+            "documents": [["doc1", "doc2"]],
+            "metadatas": [[{"source": "s", "chunk_index": 0}, {"source": "s", "chunk_index": 1}]],
+        }
+
+        mock_rewriter = Mock()
+        mock_rewriter.rewrite.return_value = ["子查询1", "子查询2"]
+        mock_rrf = Mock(return_value=(["rrf_doc1"], [{"source": "rrf"}]))
+        self.tool._rewrite = mock_rewriter
+
+        with (
+            patch("tools.impl.rag_tool.VectorStore", return_value=mock_vs),
+            patch("tools.impl.rag_tool.rrf_fuse", mock_rrf),
+        ):
+            docs, metas = self.tool.search_raw(
+                query="测试问题", k=10,
+                collection_name="test", persist_directory="/tmp/test",
+            )
+
+        mock_rrf.assert_called_once()
+        assert docs == ["rrf_doc1"]
+        assert metas == [{"source": "rrf"}]
+
+    def test_search_raw_no_qr_single_query(self):
+        """QR关闭 → 单条子查询 → rrf_fuse 走单列表快路径"""
+        mock_vs = Mock()
+        mock_vs.similarity_search.return_value = {
+            "documents": [["doc1"]],
+            "metadatas": [[{"source": "s", "chunk_index": 0}]],
+        }
+
+        self.tool._rewrite = None
+
+        with patch("tools.impl.rag_tool.VectorStore", return_value=mock_vs):
+            docs, metas = self.tool.search_raw(
+                query="简单问题", k=10,
+                collection_name="test", persist_directory="/tmp/test",
+            )
+
+        assert docs == ["doc1"]
+
+    def test_search_raw_with_reranker(self):
+        """reranker 开启 → 最终结果被截断到 k 条"""
+        mock_vs = Mock()
+        # recall_k=20, 模拟 20 条文档
+        mock_vs.similarity_search.return_value = {
+            "documents": [[f"doc{i}" for i in range(20)]],
+            "metadatas": [[{"source": "s", "chunk_index": i} for i in range(20)]],
+        }
+
+        mock_reranker = Mock()
+        mock_reranker.rerank.return_value = [
+            (f"doc{i}", round(1.0 - i * 0.05, 2)) for i in range(4)
+        ]
+
+        self.tool._rewrite = None  # 单条子查询
+        self.tool._reranker = mock_reranker
+
+        with patch("tools.impl.rag_tool.VectorStore", return_value=mock_vs):
+            docs, metas = self.tool.search_raw(
+                query="测试", k=4,
+                collection_name="test", persist_directory="/tmp/test",
+            )
+
+        assert len(docs) == 4
+        mock_reranker.rerank.assert_called_once()
