@@ -1,6 +1,8 @@
 """RRF (Reciprocal Rank Fusion) 融合函数测试"""
 
+from unittest.mock import Mock, patch
 from retrieval.rrf import rrf_fuse
+from tools.impl.rag_tool import RagTool
 
 
 class TestRrfFuse:
@@ -162,9 +164,6 @@ class TestRrfFuse:
         assert "docA" in docs
         assert "docB" in docs
 
-
-from unittest.mock import Mock, patch
-from tools.impl.rag_tool import RagTool
 
 
 class TestSearchRawRrf:

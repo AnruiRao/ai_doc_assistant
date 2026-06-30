@@ -20,8 +20,9 @@
 | 008 | [V3 滑动窗口上下文](008-sliding-window-context.md) | 已实施 |
 | 009 | [Chunker 短段落合并策略](009-chunk-fragmentation-merge.md) | 已实施 |
 | 010 | [Embedding 模型升级（V3 评测驱动）](010-embedding-upgrade-v3.md) | 已实施 |
-| 011 | [Query Rewrite — LLM 查询改写（V3 实验 A1）](011-query-rewrite.md) | 实施中 |
+| 011 | [Query Rewrite — LLM 查询改写（V3 实验 A1）](011-query-rewrite.md) | 已实施（默认关） |
 | 012 | [Reranker 选型 — 交叉编码器精排（V3 实验 A2）](012-reranker-selection.md) | 已实施 |
+| 013 | [RRF 轻量融合](013-rrf-lightweight.md) | 已实施（默认关） |
 
 ## 规范
 
