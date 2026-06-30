@@ -1,292 +1,121 @@
-# AI 文档助手
-
-> 基于自实现 RAG + ReAct Agent 的智能文档问答系统。核心逻辑不依赖 LangChain/LlamaIndex。
+<p align="center">
+  <h1 align="center">AI 文档助手</h1>
+  <p align="center">基于自实现 RAG + ReAct Agent 的知识库问答系统，核心链路零依赖框架</p>
+</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Python-3.12+-blue" alt="Python">
-  <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/RAGAS_Faithfulness-0.79-brightgreen" alt="RAGAS Faithfulness">
+  <a href="https://github.com/AnruiRao/ai_doc_assistant"><img src="https://img.shields.io/badge/Python-3.12+-blue?logo=python" alt="Python"></a>
+  <a href="https://github.com/AnruiRao/ai_doc_assistant/actions"><img src="https://img.shields.io/badge/passing-81%20tests-brightgreen?logo=github" alt="Tests"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
+  <a href="docs/test-queries.md"><img src="https://img.shields.io/badge/RAGAS_Faithfulness-0.79-brightgreen" alt="RAGAS F=0.79"></a>
+  <a href="https://github.com/AnruiRao/ai_doc_assistant/blob/main/docs/decisions/"><img src="https://img.shields.io/badge/arch_decision-13%20records-blueviolet" alt="13 decisions"></a>
 </p>
 
 ---
 
-## ✨ 项目亮点
+## 🎯 亮点
 
-- **自实现 ReAct Agent** — while + tool_calls 循环，不依赖 LangChain/LlamaIndex
-- **自实现 RAG Pipeline** — loader → cleaner → chunker → vector store，全链路可控
-- **FastAPI + Streamlit 前后端分离** — 瘦客户端模式，纯 httpx 调用
-- **BGE + Chroma 中文检索** — bge-base-zh-v1.5，768 维中文语义向量
-- **RAGAS 评测驱动优化** — Faithfulness 从 0.38 提升到 0.79（+108%，GLM-4.5-Air 下评测）
-- **pytest + GitHub Actions** — 60 测试用例，CI 自动运行
+- **自实现 ReAct** — 手写 while + tool_calls 循环，非 LangChain 封装
+- **自实现 RAG** — loader → cleaner → chunker → VectorStore，全链路可控
+- **评测驱动优化** — Faithfulness 从 0.38 提升至 **0.79**（+108%）
+- **BGE 中文语义** — bge-base-zh-v1.5 + Reranker 精排，中文检索优化
+- **13 条架构决策记录** — 每条记录"为什么这样选"，面试可直接引用
 
----
-
-## 功能概览
-
-| 功能 | 说明 |
-|------|------|
-| 📄 **文档上传** | 支持 `.txt` / `.pdf`，自动清洗 + 递归切分 + 向量化 |
-| 🔍 **语义检索** | Chroma 向量库，BGE 中文 embedding，top-k 可配 + 滑动窗口上下文 |
-| 🤖 **ReAct Agent** | 自实现思考→行动→观察循环，支持多工具调用 |
-| 💬 **多轮对话** | 聊天上下文记忆 + 工具调用历史 |
-| 🛠️ **工具系统** | 可扩展 Tool 基类 + Registry 注册器（RAG 检索、计算器等） |
-| 🌐 **REST API** | FastAPI 提供 `POST /chat`、文档 CRUD、健康检查 |
-| 🖥️ **Streamlit UI** | 瘦客户端模式，纯 httpx 调后端，秒级启动 |
-| ⚡ **异步桥接** | FastAPI 异步路由 → `asyncio.to_thread` → sync Agent |
-
----
-
-## 系统架构
-
-```mermaid
-flowchart LR
-    SUI["Streamlit UI"] -->|HTTP| FAPI["FastAPI"]
-    FAPI --> AG["AgentService"]
-    FAPI --> DS["DocumentService"]
-    AG --> RC["ReAct Agent"]
-    RC --> TR["ToolRegistry"]
-    RC --> LM["BaseLLM"]
-    RC --> RT["RAG Tool"]
-    RT --> VS["VectorStore<br/>(Chroma + BGE)"]
-```
-
-- **前端**：Streamlit 瘦客户端，纯 httpx 调用后端，无 Agent/Chroma 直接依赖
-- **API 层**：FastAPI 提供 REST 接口（`/chat`、`/upload`、`/health`）
-- **服务层**：AgentService 负责聊天编排，DocumentService 负责文档管理
-- **Agent 核心**：自实现 ReAct 循环，通过 ToolRegistry 调用工具，BaseLLM 封装 OpenAI SDK
-- **检索层**：RAG Tool 封装语义检索，Chroma + BGE 提供中文向量存储
-
----
-
-## 文档处理流程（Document Pipeline）
-
-```mermaid
-flowchart LR
-    PDF["PDF / TXT"] --> LDR["Loader (pypdf)"]
-    LDR --> CLN["Cleaner"]
-    CLN --> CHK["Chunker<br/>(递归切分 + 短合并)"]
-    CHK --> EMB["BGE Embedding"]
-    EMB --> VS["Chroma VectorStore"]
-```
-
-- **Loader**：支持 `.txt` / `.pdf`，自动识别格式
-- **Cleaner**：空行压缩、特殊字符过滤、全角半角统一
-- **Chunker**：递归分割（段落→句子→字符），短段落阈值合并（最小 chunk = chunk_size × 0.4）
-- **Embedding**：`bge-base-zh-v1.5`（768 维），中文语义匹配优化
-- **存储**：Chroma 持久化向量库，内容哈希 ID 自动去重
-
----
-
-## 对话流程（Chat Flow）
-
-```mermaid
-flowchart LR
-    USER["用户"] -->|输入问题| FAPI["FastAPI"]
-    FAPI --> AGT["ReAct Agent"]
-    AGT --> TR["ToolRegistry"]
-    TR --> RT["RAG Tool"]
-    RT --> VS["VectorStore<br/>(Chroma + BGE)"]
-    VS -->|检索结果 + 滑动窗口上下文| AGT
-    AGT --> LLM["LLM (千问/DeepSeek)"]
-    LLM -->|回答| USER
-```
-
-- 用户输入问题 → FastAPI 接收 → ReAct Agent 启动循环
-- Agent 调用 RAG Tool 检索相关文档块（top-4 + 前后各 2 个相邻 chunk）
-- 检索结果拼接上下文送入 LLM → 生成回答返回用户
-- 滑动窗口上下文确保单 chunk 信息不完整时仍有足够的背景
-
----
-
-## 快速开始
+## 🚀 快速开始
 
 ```bash
-# 1. 克隆 & 进入
-git clone https://github.com/AnruiRao/ai_doc_assistant.git
-cd ai_doc_assistant
-
-# 2. 配置环境变量
-cp .env.example .env
-# 填入 LLM_API_KEY（支持千问/DeepSeek 等 OpenAI 兼容协议）
-
-# 3. 安装依赖
-uv sync
-
-# 4. 一键启动（FastAPI + Streamlit）
-./run.sh
-
-# 或手动启动 API 测试
-uv run uvicorn src.api.main:app --reload
-curl localhost:8000/health
-curl -X POST localhost:8000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"input_text":"你好","history":[]}'
+# 30 秒启动
+git clone https://github.com/AnruiRao/ai_doc_assistant.git && cd ai_doc_assistant
+cp .env.example .env         # 填入你的 LLM_API_KEY
+uv sync && ./run.sh          # FastAPI + Streamlit 一键启动
 ```
 
-### 环境变量
+```bash
+# 或只用 API
+uv run uvicorn src.api.main:app --reload
+curl -X POST localhost:8000/chat -H "Content-Type: application/json" \
+  -d '{"input_text":"有哪些技术决策记录？","history":[]}'
+```
 
-| 变量 | 说明 | 示例 |
-|------|------|------|
-| `LLM_API_KEY` | API Key | `sk-xxx` |
-| `LLM_BASE_URL` | API 地址 | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
-| `LLM_MODEL` | 模型名 | `glm-4.5-air`（默认） |
-| `ENABLE_QUERY_REWRITE` | Query Rewrite 开关 | `false`（默认关） |
-| `ENABLE_RERANKER` | Reranker 精排开关 | `true`（默认开） |
-| `LLM_TEMPERATURE` | LLM 温度 | `0.3`（默认值，评测时设为 0） |
+## 📸 截图
 
----
+> 截图待补充。
 
-## 技术栈
+## ✨ 功能
 
-| 层 | 技术 | 说明 |
-|----|------|------|
-| **Agent 框架** | 自实现 ReAct | 不依赖 LangChain/LlamaIndex，从零实现 tool_calls 循环 |
-| **RAG Pipeline** | 自实现 | loader → cleaner → chunker → vector store，全链路可控 |
-| **向量库** | Chroma | 本地持久化，零配置，BGE 中文 embedding（768 维） |
-| **LLM 协议** | OpenAI 兼容 | 支持千问 / DeepSeek / GLM 等国产模型 |
-| **后端 API** | FastAPI | 异步路由 + 服务层 + CORS |
-| **前端** | Streamlit | 瘦客户端模式，纯 httpx 调用，无后端依赖 |
-| **测试** | pytest + GitHub Actions | 60 测试用例，CI 自动运行 |
-| **日志** | structlog | 开发彩显 / 生产 JSON，结构化追踪 |
-| **异常** | 树形体系 | 7 类异常，区分可重试 / 不可重试 |
+| 功能 | 一句话描述 |
+|------|------------|
+| 📄 文档上传 | `.txt` / `.pdf` 自动清洗、切分、向量化 |
+| 🔍 语义检索 | Chroma + BGE 向量 + 滑动窗口上下文 |
+| 🤖 ReAct Agent | 思考 → 调工具 → 观察 → 回答，纯手写循环 |
+| 🛠️ 工具系统 | 可扩展 Tool 基类 + Registry，支持 RAG/计算器等 |
+| 🌐 REST API | FastAPI 异步路由，OpenAI 兼容协议 |
+| 🖥️ Streamlit UI | 瘦客户端，纯 httpx 调后端，零后端依赖 |
+| 📊 RAGAS 评测 | 20 条测试 query，Faithfulness + Relevancy 双指标 |
+| 📝 决策记录 | 13 条架构决策，每个都写明了权衡和放弃的理由 |
 
----
+## 🏗️ 架构
 
-## 评测结果
+```
+用户 → Streamlit UI ──HTTP──→ FastAPI ──→ ReAct Agent
+                                            │
+                                  ToolRegistry ──→ RAG Tool ──→ Chroma + BGE
+                                            │
+                                       BaseLLM (OpenAI 兼容)
+```
 
-使用 **RAGAS 0.4.3**（Faithfulness + Answer Relevancy 双指标）对 20 条测试 query 进行评估。
+**全链路自实现**：Agent 循环、Tool 系统、RAG Pipeline（加载 → 清洗 → 切分 → 向量化 → 检索），核心代码不依赖 LangChain / LlamaIndex。每个环节可独立修改和调试。
 
-### 评测配置
-
-评估脚本 [`scripts/evaluate_rag.py`](scripts/evaluate_rag.py) 遵循以下配置标准：
-
-| 配置项 | 说明 |
-|--------|------|
-| **Judge LLM** | 与 Agent 使用**同一模型**（当前默认 `glm-4.5-air`） |
-| **LLM 封装** | RAGAS `llm_factory()` 包装 `AsyncOpenAI` client |
-| **max_tokens** | 32768（防止 Faithfulness 评估时输出截断） |
-| **Thinking 模式** | 关闭（`extra_body={"thinking": {"type": "disabled"}}`） |
-| **Embedding** | 独立渠道，支持与 Judge 不同平台（`EMBEDDING_API_KEY/BASE_URL`） |
-| **评分方式** | 异步 `ascore()`，支持断点续评（已有评分自动跳过） |
-
-> ⚠️ 不使用 `langchain_openai.ChatOpenAI` — RAGAS 0.4.x Collections metrics 要求 `InstructorLLM`，必须通过 `ragas.llms.llm_factory()` 创建。
+## 📊 评测
 
 ### 优化历程
 
-| 轮次 | 改动 | Judge 模型 | 效果 |
-|------|------|-----------|------|
-| baseline | chunk_size=500, overlap=50, MiniLM | 千问 3.6 | F=0.38, R=0.82 |
-| 1-4 轮 | chunk_size/滑动窗口/短合并等 | 千问 3.6 | 逐项改善 |
-| 第 5 轮 | embedding 升级 BGE（决策 010） | 千问 3.6 | F=0.38→0.6353（↑67%） |
-| 第 6 轮 | 切换到 GLM-4.5-Air 全量重评 | 同模型 | F=0.68, R=0.86 |
-| **第 7 轮** | **Reranker 精排（决策 012）** | **同模型** | **F=0.68→0.79（+16%）** |
+| 轮次 | 改动 | Faithfulness |
+|------|------|:------------:|
+| Baseline | chunk_size=500, overlap=50, MiniLM | 0.38 |
+| +chunk/滑动窗口等 | 多轮目测调优 | 逐项改善 |
+| +BGE embedding | 升级 bge-base-zh-v1.5 | **0.6353** (+67%) |
+| +GLM 重评 | 切换 GLM-4.5-Air 全量重评 | 0.68 |
+| **+Reranker 精排** | **cross-encoder 重排序** | **0.7883** (+16%) ✅ |
 
-### 最新分数（GLM-4.5-Air, Reranker 开, 2026-06-29）
+**最新分数（Reranker 开，GLM-4.5-Air）**
 
 | 指标 | Baseline | +Reranker |
 |------|:--------:|:---------:|
-| **Faithfulness** | **0.6788** | **0.7883** (+16.1%) |
-| **Answer Relevancy** | **0.8619** | **0.8664** (+0.5%) |
+| Faithfulness | 0.6788 | **0.7883** (+16.1%) |
+| Answer Relevancy | 0.8619 | 0.8664 (+0.5%) |
+
+> 评测脚本 [`scripts/evaluate_rag.py`](scripts/evaluate_rag.py)，评分数据 [`data/eval_scores.json`](data/eval_scores.json)。
+
+## 🧭 进化路线
+
+| 阶段 | 状态 |
+|------|------|
+| **V1 Demo** — Agent + RAG + UI 全链路跑通 | ✅ 完成 |
+| **V2 工程化** — FastAPI/异步桥接/服务层/测试+CI | ✅ 完成 |
+| **V3 RAG 优化** — Reranker 精排（F=0.68→0.79） | 🟡 收敛 |
+| **V4 异步改造** — AsyncOpenAI + 流式输出 | 🔲 规划中 |
+| **V4 生产化** — Docker / 多用户 / LangChain 适配 | 🔲 规划中 |
+
+## 📁 项目结构
 
 ```
-高 Faithfulness (≥0.8) —— Reranker 精排显著提升精度
-
-  ✅ 向量库目录                    1.000  — 事实型，精准命中
-  ✅ 为什么不用 LangChain           1.000  — 事实型，精准命中
-  ✅ chunk_text vs recursive      1.000  — 对比型，同时命中双方
-  ✅ Agent.run 方法参数            1.000  — Reranker 从宽召回中精准定位
-  ✅ RAG Tool save/search         1.000  — Reranker 提升了列举型覆盖
-  ✅ 为什么选 Chroma               0.750  — 事实型，波动
-
-仍需关注 (<0.5)
-
-  🔶 VectorStore 核心方法          0.581  — 列举型，Reranker 有改善
-  🔶 大文件上传处理                 0.478  — 假设型，文档未明确说明
-  🔶 V2 改了哪些核心文件            0.138  — Reranker 出现退化，待排查
+src/
+├── core/          LLM 封装、Agent 基类、配置、异常、重试、日志
+├── tools/         Tool 基类 + Registry + RAG 工具/计算器
+├── agents/        ReAct Agent 实现（同步 + 异步）
+├── ingestion/     文档加载、清洗、递归切分 + 短段合并
+├── retrieval/     Chroma 向量库 + BGE Embedding + Reranker
+├── services/      文档管理服务层
+├── api/           FastAPI 路由（chat / health / documents）
+└── app/           Streamlit 界面
 ```
 
-评分数据见 [`data/eval_scores_v3_baseline.json`](data/eval_scores_v3_baseline.json) / [`data/eval_scores_v3_reranker.json`](data/eval_scores_v3_reranker.json)。
+> 完整目录详见 [`PLAN.md`](PLAN.md)。
 
----
+## 📖 决策记录
 
-## 项目结构
-
-<details>
-<summary><strong>点击展开项目目录</strong></summary>
-
-```
-ai_doc_assistant/
-├── src/
-│   ├── core/           抽象层
-│   │   ├── config.py     Pydantic 配置 + from_env()
-│   │   ├── llm.py        OpenAI SDK 封装（invoke + invoke_with_tools）
-│   │   ├── agent.py      Agent ABC 基类
-│   │   ├── exceptions.py 树形异常体系
-│   │   ├── retry.py      tenacity 重试装饰器
-│   │   ├── logging.py    structlog 结构化日志
-│   │   └── async_utils.py asyncio.to_thread 桥接
-│   ├── tools/
-│   │   ├── base.py       Tool ABC 基类 + to_openai_tool()
-│   │   ├── registry.py   ToolRegistry 注册器
-│   │   └── impl/
-│   │       ├── calculator.py   计算器工具
-│   │       └── rag_tool.py     RAG 工具（save/search/delete/list）
-│   ├── agents/
-│   │   └── react_agent.py  ReAct 循环（同步 + 异步）
-│   ├── ingestion/
-│   │   ├── loader.py     load_text / load_pdf（pypdf）
-│   │   ├── cleaner.py    文本噪声清理
-│   │   └── chunker.py    递归切分 + 短段落合并
-│   ├── retrieval/
-│   │   └── vector_store.py  Chroma 封装 + BGE embedding
-│   ├── services/
-│   │   └── document_service.py  文档管理业务逻辑
-│   ├── api/
-│   │   ├── main.py       FastAPI 入口
-│   │   ├── __init__.py   create_app() 工厂
-│   │   ├── schemas/      Pydantic 请求/响应模型
-│   │   └── routes/       health / chat / documents 路由
-│   └── app/
-│       └── ui.py          Streamlit 界面
-├── tests/
-│   ├── unit/             单元测试
-│   ├── core/             LLM/Agent mock 测试
-│   ├── services/         服务层测试
-│   ├── api/              FastAPI 路由测试
-│   └── integration/      集成测试
-├── scripts/
-│   ├── evaluate_rag.py   RAGAS 评估脚本
-│   └── reindex.py        重索引脚本
-├── docs/
-│   └── decisions/        架构决策记录（001～010）
-├── data/                 Chroma 向量库 + 文档注册表
-├── pyproject.toml        项目配置 + 依赖
-├── .github/workflows/    GitHub Actions CI
-├── run.sh                一键启动脚本
-├── PLAN.md               项目规划路线
-├── TASKS.md              开发任务清单
-└── LICENSE               MIT License
-```
-
-</details>
-
----
-
-## 发展阶段
-
-| 阶段 | 状态 | 内容 |
-|------|------|------|
-| **V1 Demo** | ✅ | Agent 核心 + RAG 检索 + Streamlit UI 全链路跑通 |
-| **V2 工程化** | ✅ | 异常/重试/日志 → FastAPI/异步桥接 → 服务层 → 测试+CI |
-| **V3 RAG 优化** | 🟡 进行中 | Reranker 精排（F=0.68→0.79） / QR 完整实现 |
-
-| **V4 生产化** | 🔲 规划中 | Docker 部署 / 多用户 / 流式输出 / LangChain 适配层 |
-
----
-
-## 决策记录
-
-每个架构决策都记录了"为什么这样选"——选项对比、权衡分析、放弃的理由。
+每个架构决策都记录了选项对比、权衡分析和放弃的理由——面试时可以当案例讲。
 
 - [001: Embedding 模型选型](docs/decisions/001-embedding-model.md)
 - [002: ReAct VS Plan&Execute](docs/decisions/002-react-vs-plan-execute.md)
@@ -298,11 +127,29 @@ ai_doc_assistant/
 - [008: V3 滑动窗口上下文](docs/decisions/008-sliding-window-context.md)
 - [009: Chunker 短段落合并](docs/decisions/009-chunk-fragmentation-merge.md)
 - [010: Embedding 升级 BGE](docs/decisions/010-embedding-upgrade-v3.md)
-- [011: Query Rewrite（实施中）](docs/decisions/011-query-rewrite.md)
-- [012: Reranker 选型（已实施）](docs/decisions/012-reranker-selection.md)
+- [011: Query Rewrite](docs/decisions/011-query-rewrite.md)
+- [012: Reranker 选型](docs/decisions/012-reranker-selection.md)
+- [013: RRF 轻量融合](docs/decisions/013-rrf-lightweight.md)
+
+## 🛠️ 技术栈
+
+| 层 | 选型 |
+|----|------|
+| Agent 框架 | 自实现 ReAct（零框架依赖） |
+| RAG Pipeline | 自实现（loader → cleaner → chunker → search） |
+| 向量库 | Chroma + BGE (768d) |
+| LLM 协议 | OpenAI 兼容（支持千问 / DeepSeek / GLM） |
+| 后端 | FastAPI + structlog |
+| 前端 | Streamlit（瘦客户端） |
+| 测试 | pytest + GitHub Actions（81 用例） |
+| 包管理 | uv |
+
+## 📜 License
+
+MIT License. See [LICENSE](LICENSE).
 
 ---
 
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+<p align="center">
+  <a href="PLAN.md">📋 项目规划</a> · <a href="TASKS.md">✅ 任务清单</a> · <a href="docs/decisions/">📝 决策记录</a>
+</p>
