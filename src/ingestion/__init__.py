@@ -1,6 +1,7 @@
 from ingestion.loader import load_document, load_text, load_pdf
 from ingestion.cleaner import clean_text
 from ingestion.chunker import Chunker
+from ingestion.gov_parser import tag_gov_sections
 
 __all__ = [
     "load_document",
@@ -8,4 +9,5 @@ __all__ = [
     "load_pdf",
     "clean_text",
     "Chunker",
+    "tag_gov_sections",
 ]
