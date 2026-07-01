@@ -115,7 +115,7 @@ src/
 
 ## 📖 决策记录
 
-每个架构决策都记录了选项对比、权衡分析和放弃的理由——面试时可以当案例讲。
+每个架构决策都记录了选项对比、权衡分析和放弃的理由
 
 - [001: Embedding 模型选型](docs/decisions/001-embedding-model.md)
 - [002: ReAct VS Plan&Execute](docs/decisions/002-react-vs-plan-execute.md)

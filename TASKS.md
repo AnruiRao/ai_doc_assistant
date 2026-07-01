@@ -455,8 +455,11 @@ A1: QR 完整实现（实施中：联合检索 + RRF 融合）
 | **Faithfulness** | **0.6788** | **0.7883** (+16.1%) |
 | **Answer Relevancy** | **0.8619** | **0.8664** (+0.5%) |
 
-见详情：`data/eval_scores_v3_baseline.json` / `data/eval_scores_v3_reranker.json`。
+见详情：`data/eval_scores.json`。
 
 ### 待完成
 
-- [ ] A1 QR 完整实现：改进 prompt + 联合检索 + RRF 融合
+- [x] ~~A1 QR 完整实现：改进 prompt + 联合检索 + RRF 融合~~（已实现，单一检索策略无收益，默认关）
+- [ ] **V3.5 全链路异步化**：`OpenAI` → `AsyncOpenAI`，Agent+LLM+API 全 async，砍掉 `asyncio.to_thread`
+- [ ] **V3.5 流式输出**：LLM stream → Agent async generator → FastAPI StreamingResponse
+- [ ] **方向调整**：从通用文档问答转向垂直领域（待明确方向）
