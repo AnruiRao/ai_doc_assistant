@@ -20,6 +20,25 @@ with st.sidebar:
         except Exception as e:
             st.error(f"入库失败：{str(e)}")
 
+    # 从政务公开网址导入
+    st.divider()
+    st.caption("从政务公开网址导入")
+    guide_url = st.text_input("粘贴办事指南网页URL", label_visibility="collapsed",
+                              placeholder="https://www.xxx.gov.cn/...")
+    if guide_url and st.button("获取指南", key="fetch_guide"):
+        try:
+            r = httpx.post(
+                "http://localhost:8000/ingest-url",
+                json={"url": guide_url},
+                timeout=60,
+            )
+            r.raise_for_status()
+            st.success(r.json()["message"])
+            st.rerun()
+        except Exception as e:
+            st.error(f"导入失败：{str(e)}")
+
+    st.divider()
     try:
         resp = httpx.get("http://localhost:8000/documents", timeout=10)
         if resp.status_code == 200:
