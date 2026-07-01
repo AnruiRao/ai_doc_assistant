@@ -5,7 +5,7 @@ import json
 
 from uuid import uuid4
 from retrieval.vector_store import VectorStore
-from ingestion import load_document, clean_text, Chunker
+from ingestion import load_document, clean_text, Chunker, tag_gov_sections
 from datetime import datetime, timezone
 
 logger = structlog.get_logger(__name__)
@@ -49,6 +49,7 @@ class DocumentService:
 
         text = load_document(str(save_path))
         text = clean_text(text)
+        text = tag_gov_sections(text)
         chunks = Chunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap).recursive_split(text, chunk_size=chunk_size)
         chunk_ids = [str(uuid4()) for _ in chunks]
         metadatas = [{"source": str(save_path), "chunk_index": i} for i in range(len(chunks))]

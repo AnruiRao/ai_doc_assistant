@@ -10,6 +10,7 @@ from typing import Literal
 from ingestion.loader import load_document
 from ingestion.cleaner import clean_text
 from ingestion.chunker import Chunker
+from ingestion.gov_parser import tag_gov_sections
 from retrieval.vector_store import VectorStore
 import structlog
 from services.document_service import DocumentService
@@ -122,6 +123,7 @@ class RagTool(Tool):
 
             text = load_document(path)
             text = clean_text(text)
+            text = tag_gov_sections(text)
             chunker = Chunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
             chunks = chunker.recursive_split(text, chunk_size=chunk_size)
 
