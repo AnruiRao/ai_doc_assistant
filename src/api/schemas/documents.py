@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, HttpUrl
 
 class UploadResponse(BaseModel):
     id: str
@@ -19,7 +19,7 @@ class DeleteResponse(BaseModel):
 
 class IngestUrlRequest(BaseModel):
     """从政务公开网址导入办事指南"""
-    url: str
+    url: HttpUrl
 
 
 class IngestUrlResponse(BaseModel):

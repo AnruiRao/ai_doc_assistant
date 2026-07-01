@@ -1,11 +1,8 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from api.schemas.documents import UploadResponse, DocumentItem, DeleteResponse, IngestUrlRequest, IngestUrlResponse
+from api.schemas.documents import UploadResponse, DocumentItem, DeleteResponse, IngestUrlRequest
 from pathlib import Path
 from services.document_service import DocumentService
-from uuid import uuid4
-from ingestion import fetch_web_content, clean_text, tag_gov_sections, Chunker
-from retrieval.vector_store import VectorStore
-from services.document_service import CHROMA_PATH
+from ingestion import fetch_web_content
 
 
 router = APIRouter()
@@ -51,30 +48,27 @@ def delete_document(doc_id: str):
     )
 
 
-@router.post("/ingest-url", response_model=IngestUrlResponse)
+@router.post("/ingest-url", response_model=UploadResponse)
 async def ingest_url(body: IngestUrlRequest):
-    """从政务公开网址导入办事指南内容到知识库"""
+    """从政务公开网址导入办事指南内容到知识库（通过 DocumentService）"""
+    from uuid import uuid4
+
     try:
-        text = fetch_web_content(body.url)
+        text = fetch_web_content(str(body.url))
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"无法获取网页内容：{str(e)}")
 
-    text = clean_text(text)
-    text = tag_gov_sections(text)
-    chunker = Chunker(chunk_size=1000, chunk_overlap=100)
-    chunks = chunker.recursive_split(text, chunk_size=1000)
+    # 提取标题作为文件名
+    first_line = text.strip().split('\n')[0][:50] if text.strip() else "web_import"
+    safe_name = f"{first_line}_{uuid4().hex[:8]}.txt"
+    safe_name = "".join(c if c.isalnum() or c in ('-', '_', '.') else '_' for c in safe_name)
 
-    if not chunks:
-        return IngestUrlResponse(message="未提取到有效内容", chunk_count=0)
+    # 保存后通过 DocumentService 处理（获得去重+注册表+可删除）
+    result = DocumentService().upload(content=text.encode('utf-8'), filename=safe_name)
 
-    ids = [str(uuid4()) for _ in chunks]
-    metadatas = [{"source": body.url, "chunk_index": i} for i in range(len(chunks))]
-
-    VectorStore(collection_name="documents", persist_directory=CHROMA_PATH).add_documents(
-        documents=chunks, ids=ids, metadatas=metadatas
-    )
-
-    return IngestUrlResponse(
-        message=f"已从 {body.url} 导入，共 {len(chunks)} 个片段",
-        chunk_count=len(chunks),
+    return UploadResponse(
+        id=result.id,
+        filename=result.filename,
+        chunk_count=result.chunk_count,
+        message=f"已从 {body.url} 导入，共 {result.chunk_count} 个片段",
     )

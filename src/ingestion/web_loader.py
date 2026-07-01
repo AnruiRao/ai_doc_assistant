@@ -1,7 +1,39 @@
 import re
 import html as html_mod
+from urllib.parse import urlparse
 
 import httpx
+
+
+def _validate_url(url: str) -> None:
+    """验证URL安全：只允许http/https，禁止私有IP和回环地址。"""
+    import ipaddress
+    import socket
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"不支持的协议: {parsed.scheme}，仅支持 http/https")
+
+    host = parsed.hostname
+    if not host:
+        raise ValueError("无效的URL: 无主机名")
+
+    # 禁止本地回环和私有地址
+    try:
+        addr = ipaddress.ip_address(host)
+        if addr.is_loopback or addr.is_private or addr.is_link_local:
+            raise ValueError(f"不允许访问私有地址: {host}")
+    except ValueError as e:
+        if str(e).startswith("不允许"):
+            raise
+        # host可能是域名，不做IP验证（域名解析可能跨环境）
+        pass
+
+    # 黑名单内网域名
+    private_hosts = {"localhost", "127.0.0.1", "0.0.0.0", "[::1]", "metadata.google.internal",
+                     "169.254.169.254"}
+    if host.lower() in private_hosts:
+        raise ValueError(f"不允许访问内网地址: {host}")
 
 
 _CONTENT_SELECTORS = [
@@ -74,6 +106,8 @@ def fetch_web_content(url: str, html: str | None = None, timeout: int = 30) -> s
     Returns:
         提取并清理后的纯文本内容。
     """
+    _validate_url(url)
+
     if html is None:
         response = httpx.get(
             url,
