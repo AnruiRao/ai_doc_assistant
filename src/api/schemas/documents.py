@@ -15,3 +15,13 @@ class DocumentItem(BaseModel):
 class DeleteResponse(BaseModel):
     message: str
     chunk_count: int
+
+
+class IngestUrlRequest(BaseModel):
+    """从政务公开网址导入办事指南"""
+    url: str
+
+
+class IngestUrlResponse(BaseModel):
+    message: str
+    chunk_count: int
