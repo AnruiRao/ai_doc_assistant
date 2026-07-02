@@ -131,25 +131,45 @@ uv run streamlit run src/app/ui.py
 ```
 src/
 ├── core/
-│   ├── config.py        # 配置（Pydantic BaseModel）
-│   ├── llm.py           # LLM 封装（invoke + invoke_with_tools）
-│   ├── agent.py         # Agent 抽象基类
-│   └── exceptions.py    # 异常
+│   ├── config.py          # 配置（Pydantic BaseModel）
+│   ├── llm.py             # LLM 封装（invoke + invoke_with_tools）
+│   ├── agent.py           # Agent 抽象基类
+│   ├── exceptions.py      # 异常体系
+│   ├── retry.py           # tenacity 重试装饰器
+│   ├── logging.py         # structlog 结构化日志
+│   └── async_utils.py     # 同步→异步桥接
 ├── tools/
-│   ├── base.py          # Tool 抽象基类
-│   ├── registry.py      # ToolRegistry 注册器
+│   ├── base.py            # Tool 抽象基类
+│   ├── registry.py        # ToolRegistry 注册器
 │   └── impl/
 │       ├── calculator.py  # 计算器工具
-│       └── rag_tool.py    # RAG 知识库工具
+│       └── rag_tool.py    # RAG 知识库工具（save/search/delete/list）
 ├── agents/
-│   └── react_agent.py   # ReAct Agent 实现
+│   └── react_agent.py     # ReAct Agent 实现（市场监管领域 prompt）
 ├── ingestion/
-│   ├── loader.py        # 文档加载器（.txt / .pdf）
-│   └── chunker.py       # 文本切分器（chunk_size + chunk_overlap）
+│   ├── loader.py          # 文档加载器（.txt / .pdf）
+│   ├── cleaner.py         # 文本噪声清理
+│   ├── chunker.py         # 递归分割 + 短段合并
+│   ├── gov_parser.py      # 政务文档章节识别与标记
+│   └── web_loader.py      # 政务网页 HTML 提取
 ├── retrieval/
-│   └── vector_store.py  # Chroma 向量库封装
+│   ├── vector_store.py    # Chroma 向量库封装
+│   └── reranker.py        # Cross-encoder 精排
+├── services/
+│   └── document_service.py # 文档管理服务（上传/列表/删除/URL导入）
+├── api/
+│   ├── main.py            # uvicorn 入口
+│   ├── __init__.py         # create_app() 工厂
+│   ├── dependencies.py    # DI 注入
+│   ├── schemas/
+│   │   ├── chat.py         # ChatRequest / ChatResponse
+│   │   └── documents.py    # UploadResponse / IngestUrlRequest 等
+│   └── routes/
+│       ├── health.py       # GET /health
+│       ├── chat.py         # POST /chat
+│       └── documents.py    # 文档管理 + POST /ingest-url
 └── app/
-    └── ui.py          # Streamlit 界面
+    └── ui.py              # Streamlit 界面（瘦客户端 + URL 导入）
 ```
 
 ## 总依赖图
@@ -366,7 +386,7 @@ curl -X POST localhost:8000/chat \  # 验证聊天
 
 - **文件**: `tests/test_documents.py`、`.github/workflows/ci.yml`
 - **内容**: pytest 配置（asyncio_mode + testpaths）、DocumentService 测试（4 个）、API TestClient 路由测试（6 个）、GitHub Actions CI（uv sync → pytest → ruff check）
-- **收益**: 每次 push 自动跑全部 41 个测试，质量防线
+- **收益**: 每次 push 自动跑全部 94 个测试（V2: 41 + Phase A: 11 + Reranker/QR 等: 42），质量防线
 - **注意**: `test_react_agent.py`（依赖真实 API key）加了 skip marker，CI 跳过；Agent 层暂无 mock 测试，后续有需求再补
 
 ---
@@ -457,9 +477,56 @@ A1: QR 完整实现（实施中：联合检索 + RRF 融合）
 
 见详情：`data/eval_scores.json`。
 
+### 垂直领域 Phase A：市场监管办事导办 ✅ 已完成
+
+**数据基础层**
+
+| 任务 | 文件 | 内容 |
+|------|------|------|
+| gov_parser | `src/ingestion/gov_parser.py` | 政务文档编号章节（一、二、三）和命名章节（办理材料/申请条件）识别与标记 |
+| gov_parser 测试 | `tests/test_gov_parser.py` | 7 个用例：空文本/无匹配/编号章节/命名章节/混合/列表保护/非误标记 |
+| web_loader | `src/ingestion/web_loader.py` | 政务网页 HTML→结构化文本，httpx 抓取 + 内容容器识别 + SSRF 防护 |
+| web_loader 测试 | `tests/test_web_loader.py` | 4 个用例：简单HTML/不同class/无内容容器/网络异常 |
+
+**集成层**
+
+| 任务 | 文件 | 内容 |
+|------|------|------|
+| 数据处理链集成 | `src/services/document_service.py` + `src/tools/impl/rag_tool.py` | upload() 和 save 中 cleaner→**gov_parser**→chunker 全链路 |
+| 导出新函数 | `src/ingestion/__init__.py` | 导出 tag_gov_sections + fetch_web_content |
+
+**API 层**
+
+| 任务 | 文件 | 内容 |
+|------|------|------|
+| IngestUrlRequest schema | `src/api/schemas/documents.py` | pydantic.HttpUrl 格式校验 |
+| POST /ingest-url | `src/api/routes/documents.py` | URL→web_loader→cleaner→gov_parser→chunker→Chroma 全链路 |
+| SSRF 防护 | `src/api/routes/documents.py` | URL scheme 校验 + 私有 IP/内网域名拦截 |
+| URL 路由到 DocumentService | `src/api/routes/documents.py` | 获得去重 + 注册表 + 可删除能力 |
+
+**应用层**
+
+| 任务 | 文件 | 内容 |
+|------|------|------|
+| Agent prompt 替换 | `src/agents/react_agent.py` | 通用 prompt → 市场监管办事导办专用版本 |
+| Streamlit URL 导入 | `src/app/ui.py` | 侧边栏新增"从政务公开网址导入"输入框 |
+
+**启动方式**
+
+```bash
+cd /Users/anrui/projects/ai_doc_assistant
+./run.sh                                            # 一键启动（FastAPI + Streamlit）
+curl -X POST localhost:8000/ingest-url -H "Content-Type: application/json" \
+  -d '{"url":"https://www.xxx.gov.cn/..."}'        # 导入政务办事指南
+```
+
+**测试**：新增 11 个测试用例（gov_parser 7 + web_loader 4），总计 **94** 个测试。
+
 ### 待完成
 
 - [x] ~~A1 QR 完整实现：改进 prompt + 联合检索 + RRF 融合~~（已实现，单一检索策略无收益，默认关）
+- [x] ~~**垂直领域 Phase A**：市场监管办事导办~~（已确认方向并完成 Phase A）
+- [ ] **Phase B**：引导式导办对话 + 用户画像收集（交互轴升级）
+- [ ] **Phase C**：结构化事项数据（JSON/SQLite）+ 条件→材料自动映射（数据轴升级）
 - [ ] **V3.5 全链路异步化**：`OpenAI` → `AsyncOpenAI`，Agent+LLM+API 全 async，砍掉 `asyncio.to_thread`
 - [ ] **V3.5 流式输出**：LLM stream → Agent async generator → FastAPI StreamingResponse
-- [ ] **方向调整**：从通用文档问答转向垂直领域（待明确方向）

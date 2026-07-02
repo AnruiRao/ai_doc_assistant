@@ -1,7 +1,7 @@
 [project]
 name = "ai-doc-assistant"
 version = "0.2.0"
-description = "AI 文档助手 — 基于 RAG 和 Agent 的智能知识库"
+description = "市场监管办事导办助手 — 基于 RAG 和 Agent 的政务智能导办"
 requires-python = ">=3.12"
 dependencies = [
     "openai>=1.0.0",

@@ -1,11 +1,11 @@
 <p align="center">
-  <h1 align="center">AI 文档助手</h1>
-  <p align="center">基于自实现 RAG + ReAct Agent 的知识库问答系统，核心链路零依赖框架</p>
+  <h1 align="center">市场监管办事导办助手</h1>
+  <p align="center">基于自实现 RAG + ReAct Agent 的政务办事导办系统，核心链路零依赖框架</p>
 </p>
 
 <p align="center">
   <a href="https://github.com/AnruiRao/ai_doc_assistant"><img src="https://img.shields.io/badge/Python-3.12+-blue?logo=python" alt="Python"></a>
-  <a href="https://github.com/AnruiRao/ai_doc_assistant/actions"><img src="https://img.shields.io/badge/passing-81%20tests-brightgreen?logo=github" alt="Tests"></a>
+  <a href="https://github.com/AnruiRao/ai_doc_assistant/actions"><img src="https://img.shields.io/badge/passing-94%20tests-brightgreen?logo=github" alt="Tests"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
   <a href="docs/test-queries.md"><img src="https://img.shields.io/badge/RAGAS_Faithfulness-0.79-brightgreen" alt="RAGAS F=0.79"></a>
   <a href="https://github.com/AnruiRao/ai_doc_assistant/blob/main/docs/decisions/"><img src="https://img.shields.io/badge/arch_decision-13%20records-blueviolet" alt="13 decisions"></a>
@@ -19,6 +19,7 @@
 - **自实现 RAG** — loader → cleaner → chunker → VectorStore，全链路可控
 - **评测驱动优化** — Faithfulness 从 0.38 提升至 **0.79**（+108%）
 - **BGE 中文语义** — bge-base-zh-v1.5 + Reranker 精排，中文检索优化
+- **政务文档解析** — 章节识别（编号+命名章节）+ 政务网页抓取，垂直领域就绪
 - **13 条架构决策记录** — 每条记录"为什么这样选"，面试可直接引用
 
 ## 🚀 快速开始
@@ -46,10 +47,12 @@ curl -X POST localhost:8000/chat -H "Content-Type: application/json" \
 | 功能 | 一句话描述 |
 |------|------------|
 | 📄 文档上传 | `.txt` / `.pdf` 自动清洗、切分、向量化 |
+| 🌐 网址导入 | 粘贴政务公开网页 URL，自动抓取、解析、入库 |
 | 🔍 语义检索 | Chroma + BGE 向量 + 滑动窗口上下文 |
-| 🤖 ReAct Agent | 思考 → 调工具 → 观察 → 回答，纯手写循环 |
+| 🏷️ 政务章节识别 | 自动标记办事指南的"申请条件/办理材料/办理流程"章节 |
+| 🤖 ReAct Agent | 思考 → 调工具 → 观察 → 回答，纯手写循环（市场监管领域 prompt） |
 | 🛠️ 工具系统 | 可扩展 Tool 基类 + Registry，支持 RAG/计算器等 |
-| 🌐 REST API | FastAPI 异步路由，OpenAI 兼容协议 |
+| 🌐 REST API | FastAPI 异步路由，OpenAI 兼容协议 + URL 导入接口 |
 | 🖥️ Streamlit UI | 瘦客户端，纯 httpx 调后端，零后端依赖 |
 | 📊 RAGAS 评测 | 20 条测试 query，Faithfulness + Relevancy 双指标 |
 | 📝 决策记录 | 13 条架构决策，每个都写明了权衡和放弃的理由 |
@@ -93,7 +96,8 @@ curl -X POST localhost:8000/chat -H "Content-Type: application/json" \
 |------|------|
 | **V1 Demo** — Agent + RAG + UI 全链路跑通 | ✅ 完成 |
 | **V2 工程化** — FastAPI/异步桥接/服务层/测试+CI | ✅ 完成 |
-| **V3 RAG 优化** — Reranker 精排（F=0.68→0.79） | 🟡 收敛 |
+| **V3 RAG 优化** — Reranker 精排（F=0.68→0.79） | ✅ 收敛 |
+| **垂直领域 Phase A** — 市场监管办事导办，章节识别 + 网页导入 + 领域 prompt | ✅ 完成 |
 | **V4 异步改造** — AsyncOpenAI + 流式输出 | 🔲 规划中 |
 | **V4 生产化** — Docker / 多用户 / LangChain 适配 | 🔲 规划中 |
 
@@ -103,12 +107,12 @@ curl -X POST localhost:8000/chat -H "Content-Type: application/json" \
 src/
 ├── core/          LLM 封装、Agent 基类、配置、异常、重试、日志
 ├── tools/         Tool 基类 + Registry + RAG 工具/计算器
-├── agents/        ReAct Agent 实现（同步 + 异步）
-├── ingestion/     文档加载、清洗、递归切分 + 短段合并
+├── agents/        ReAct Agent 实现（市场监管领域 prompt）
+├── ingestion/     文档加载、清洗、递归切分 + 短段合并 + 政务章节识别 + 网页抓取
 ├── retrieval/     Chroma 向量库 + BGE Embedding + Reranker
 ├── services/      文档管理服务层
-├── api/           FastAPI 路由（chat / health / documents）
-└── app/           Streamlit 界面
+├── api/           FastAPI 路由（chat / health / documents / ingest-url）
+└── app/           Streamlit 界面（瘦客户端 + URL 导入）
 ```
 
 > 完整目录详见 [`PLAN.md`](PLAN.md)。
@@ -141,7 +145,7 @@ src/
 | LLM 协议 | OpenAI 兼容（支持千问 / DeepSeek / GLM） |
 | 后端 | FastAPI + structlog |
 | 前端 | Streamlit（瘦客户端） |
-| 测试 | pytest + GitHub Actions（81 用例） |
+| 测试 | pytest + GitHub Actions（94 用例） |
 | 包管理 | uv |
 
 ## 📜 License

@@ -1,16 +1,16 @@
-# AI 文档助手 — 项目规划
+# 市场监管办事导办助手 — 项目规划
 
 ## 快速定位（30 秒了解）
 
 ### 这是什么？
-RAG + 自实现 ReAct Agent 的智能文档问答系统。从 Demo 逐步演进到生产级产品。
+RAG + 自实现 ReAct Agent 的政务办事导办系统。从 Demo 逐步演进到垂直领域产品。
 
 ### 现在在哪？
 - ✅ **V1 完成** — Agent 核心 + RAG 检索 + Streamlit UI 全链路跑通
 - ✅ **V2 完成** — 异常体系、FastAPI、服务层、测试 CI、Streamlit 瘦客户端
-- 🟡 **V3 收敛中** — Reranker 精排（F=0.68→0.79，默认开）；QR+RRF（已实现，单一检索策略无收益，默认关）
+- ✅ **V3 收敛中** — Reranker 精排（F=0.68→0.79，默认开）；QR+RRF（已实现，单一检索策略无收益，默认关）
+- ✅ **垂直领域 Phase A** — 市场监管办事导办，gov_parser + web_loader + Agent prompt 替换
 - 🔲 **V3.5 异步改造 + 流式** — LLM→Agent→API 全链路 async（AsyncOpenAI），砍掉 to_thread 桥接
-- 🔲 **方向调整** — 从通用文档问答转向垂直领域（待明确方向）
 
 ### 快速上手
 ```bash
@@ -39,7 +39,7 @@ docs/decisions/ 架构决策记录
 
 一个带 RAG 能力的 AI Agent 助手，作为大模型应用开发的学习项目，逐步靠近生产级产品。
 
-> 规划转向垂直领域（待明确方向），计划将项目从通用文档问答调整为特定领域的知识库系统。
+> 当前已确认转向**市场监管办事导办**方向，Phase A（数据基础：章节识别 + 网页导入 + 领域 prompt）已完成。后续规划见 `docs/superpowers/specs/2026-07-01-gov-domain-phase-a.md`。
 
 ## 技术选型
 
@@ -112,15 +112,30 @@ src/
 │   ├── registry.py     #   ToolRegistry 注册器
 │   └── impl/
 │       ├── calculator.py  #  计算器工具
-│       └── rag_tool.py    #  RAG 知识库工具（save + search）
+│       └── rag_tool.py    #  RAG 知识库工具（save + search + delete + list）
 ├── agents/             ← 具体 Agent
-│   └── react_agent.py  #   ReAct 循环实现
+│   └── react_agent.py  #   ReAct 循环实现（市场监管领域 prompt）
 ├── ingestion/          ← 文档处理
 │   ├── loader.py       #   load_text / load_pdf / load_document
-│   └── chunker.py      #   Chunker（chunk_size + chunk_overlap）
+│   ├── cleaner.py      #   文本噪声清理
+│   ├── chunker.py      #   Chunker（递归分割 + 短段合并）
+│   ├── gov_parser.py   #   政务文档章节识别与标记
+│   └── web_loader.py   #   政务网页 HTML → 结构化文本
 ├── retrieval/          ← 向量检索
-│   └── vector_store.py #   Chroma 封装（add / search / count / delete）
-└── app/                ← （待实现）
+│   ├── vector_store.py #   Chroma 封装（add / search / count / delete）
+│   └── reranker.py     #   Cross-encoder 精排
+├── services/           ← 服务层
+│   └── document_service.py  # 文档管理（上传/列表/删除/URL导入）
+├── api/                ← FastAPI 路由
+│   ├── routes/
+│   │   ├── health.py      # GET /health
+│   │   ├── chat.py        # POST /chat
+│   │   └── documents.py   # 文档管理 + POST /ingest-url
+│   └── schemas/
+│       ├── chat.py        # ChatRequest / ChatResponse
+│       └── documents.py   # IngestUrlRequest 等
+└── app/
+    └── ui.py           # Streamlit 界面（瘦客户端 + URL 导入）
 ```
 
 ---
@@ -306,6 +321,18 @@ V3 的流程是循环式的：
 - [x] Phase 5：证据落地到 docs/decisions/ 和 test-queries.md
 - [x] **实验 A2：Reranker 集成**（决策 012，F=0.679→0.788，+16.1%，默认开）
 - [x] **实验 A1：QR + RRF 完整实现**（决策 011 + 013，已实现但单一检索策略下 F=0.669 无收益，默认关，为 Hybrid Search 预留）
+
+**垂直领域 Phase A：市场监管办事导办 ✅ 已完成**
+- [x] **gov_parser** — 政务文档章节识别（编号章节 + 命名章节），在 cleaner→chunker 之间插入
+- [x] **web_loader** — 政务网页 HTML → 结构化文本提取，支持多种内容容器
+- [x] **集成到数据处理链** — DocumentService.upload() + rag_tool save 均调用 tag_gov_sections()
+- [x] **POST /ingest-url** — FastAPI 路由，创建 URL→web_loader→cleaner→gov_parser→chunker→Chroma 全链路
+- [x] **SSRF 防护** — URL scheme 校验 + 私有 IP/内网域名拦截 + pydantic.HttpUrl 格式校验
+- [x] **Agent prompt 替换** — 通用 prompt → 市场监管办事导办专用版本
+- [x] **Streamlit URL 导入** — 侧边栏新增"从政务公开网址导入"输入框
+- [x] **URL导入通过 DocumentService** — 获得去重 + 注册表 + 可删除能力
+- [ ] **Phase B** — 引导式导办对话 + 用户画像（规划中）
+- [ ] **Phase C** — 结构化事项数据（JSON/SQLite）+ 条件→材料自动映射（规划中）
 
 ---
 
