@@ -29,9 +29,9 @@ class TestTagGovSections:
         # 应该有 4 段：开头 + 3 章节
         assert len(lines) >= 4, f"应 split 出至少 4 段，实际 {len(lines)}"
         # 检查编号行本身被保留
-        assert any("一、适用范围" in l for l in lines)
-        assert any("二、登记程序" in l for l in lines)
-        assert any("三、监督管理" in l for l in lines)
+        assert any("一、适用范围" in line for line in lines)
+        assert any("二、登记程序" in line for line in lines)
+        assert any("三、监督管理" in line for line in lines)
 
     def test_named_sections(self):
         """命名章节（办理材料等）加 【】 标记"""
@@ -66,8 +66,8 @@ class TestTagGovSections:
         result = tag_gov_sections(text)
         parts = result.split("\n\n")
         # 编号和命名标记都应生效
-        assert any("一、设定依据" in l for l in parts)
-        assert any("二、申请条件" in l for l in parts)
+        assert any("一、设定依据" in line for line in parts)
+        assert any("二、申请条件" in line for line in parts)
         assert "【办理材料】" in result
 
     def test_preserves_list(self):

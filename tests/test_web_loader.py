@@ -1,4 +1,3 @@
-import httpx
 import pytest
 from ingestion.web_loader import fetch_web_content
 

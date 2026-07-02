@@ -8,7 +8,6 @@ import httpx
 def _validate_url(url: str) -> None:
     """验证URL安全：只允许http/https，禁止私有IP和回环地址。"""
     import ipaddress
-    import socket
 
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):

@@ -35,7 +35,7 @@ uv sync && ./run.sh          # FastAPI + Streamlit 一键启动
 # 或只用 API
 uv run uvicorn src.api.main:app --reload
 curl -X POST localhost:8000/chat -H "Content-Type: application/json" \
-  -d '{"input_text":"有哪些技术决策记录？","history":[]}'
+  -d '{"input_text":"办理个体户营业执照需要哪些材料？","history":[]}'
 ```
 
 ## 📸 截图
