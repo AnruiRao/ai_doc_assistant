@@ -23,6 +23,8 @@
 | 011 | [Query Rewrite — LLM 查询改写（V3 实验 A1）](011-query-rewrite.md) | 已实施（默认关） |
 | 012 | [Reranker 选型 — 交叉编码器精排（V3 实验 A2）](012-reranker-selection.md) | 已实施 |
 | 013 | [RRF 轻量融合](013-rrf-lightweight.md) | 已实施（默认关） |
+| 014 | [客户端角色分割](014-client-role-split.md) | 已实施 |
+| 015 | [文档提取架构重构](015-document-extraction-architecture.md) | 待讨论 |
 | — | [垂直领域 Phase A 设计文档](../superpowers/specs/2026-07-01-gov-domain-phase-a.md) | 已实施 |
 
 ## 规范

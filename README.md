@@ -8,7 +8,7 @@
   <a href="https://github.com/AnruiRao/ai_doc_assistant/actions"><img src="https://img.shields.io/badge/passing-94%20tests-brightgreen?logo=github" alt="Tests"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
   <a href="docs/test-queries.md"><img src="https://img.shields.io/badge/RAGAS_Faithfulness-0.79-brightgreen" alt="RAGAS F=0.79"></a>
-  <a href="https://github.com/AnruiRao/ai_doc_assistant/blob/main/docs/decisions/"><img src="https://img.shields.io/badge/arch_decision-13%20records-blueviolet" alt="13 decisions"></a>
+  <a href="https://github.com/AnruiRao/ai_doc_assistant/blob/main/docs/decisions/"><img src="https://img.shields.io/badge/arch_decision-15%20records-blueviolet" alt="15 decisions"></a>
 </p>
 
 ---
@@ -119,21 +119,8 @@ src/
 
 ## 📖 决策记录
 
-每个架构决策都记录了选项对比、权衡分析和放弃的理由
-
-- [001: Embedding 模型选型](docs/decisions/001-embedding-model.md)
-- [002: ReAct VS Plan&Execute](docs/decisions/002-react-vs-plan-execute.md)
-- [003: Tool 系统设计](docs/decisions/003-tool-system-design.md)
-- [004: Agent 多轮对话设计方案](docs/decisions/004-agent-conversation-design.md)
-- [005: RAG Tool 设计](docs/decisions/005-rag-tool-design.md)
-- [006: V2 异常体系设计](docs/decisions/006-v2-exception-hierarchy.md)
-- [007: FastAPI + 异步桥接方案](docs/decisions/007-fastapi-async-bridge.md)
-- [008: V3 滑动窗口上下文](docs/decisions/008-sliding-window-context.md)
-- [009: Chunker 短段落合并](docs/decisions/009-chunk-fragmentation-merge.md)
-- [010: Embedding 升级 BGE](docs/decisions/010-embedding-upgrade-v3.md)
-- [011: Query Rewrite](docs/decisions/011-query-rewrite.md)
-- [012: Reranker 选型](docs/decisions/012-reranker-selection.md)
-- [013: RRF 轻量融合](docs/decisions/013-rrf-lightweight.md)
+每个架构决策都记录了选项对比、权衡分析和放弃的理由。
+👉 查看 [`docs/decisions/`](docs/decisions/) 目录，按编号顺序阅读。
 
 ## 🛠️ 技术栈
 
