@@ -1,7 +1,7 @@
 import streamlit as st
 import httpx
 
-st.set_page_config(page_title="AI知识文档")
+st.set_page_config(page_title="市场监管办事导办助手")
 
 with st.sidebar:
     st.title("文档管理")
