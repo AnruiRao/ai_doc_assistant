@@ -331,6 +331,14 @@ V3 的流程是循环式的：
 - [x] **Agent prompt 替换** — 通用 prompt → 市场监管办事导办专用版本
 - [x] **Streamlit URL 导入** — 侧边栏新增"从政务公开网址导入"输入框
 - [x] **URL导入通过 DocumentService** — 获得去重 + 注册表 + 可删除能力
+- [ ] **Phase D** — 客户端角色分割（决策 014，待实施）
+  - [ ] Streamlit Session State 模式切换，市民/管理员视图分离
+  - [ ] 四类管理面板功能归纳（文件上传/URL导入/知识库管理/清空全库）
+  - [ ] 扩展功能（概览统计/检索测试/全量重索引）实现时按需添加
+- [ ] **Phase E** — 文档提取架构重构（决策 015，待讨论待实施）
+  - [ ] PageExtractor 抽象接口定义
+  - [ ] 可插拔提取器链（GovSite + Readability + GenericFallback）
+  - [ ] 站点配置注册机制
 - [ ] **Phase B** — 引导式导办对话 + 用户画像（规划中）
 - [ ] **Phase C** — 结构化事项数据（JSON/SQLite）+ 条件→材料自动映射（规划中）
 
