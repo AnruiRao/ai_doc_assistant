@@ -337,6 +337,7 @@ V3 的流程是循环式的：
   - [x] Streamlit Session State 模式切换，市民/管理员视图分离
   - [x] 管理面板功能归纳（文件上传/URL导入/知识库管理）
   - [ ] 扩展功能（概览统计/检索测试/全量重索引）实现时按需添加
+- [x] ~~Release v1.0.0 tag~~（v0.5.x 远未达到 1.0，移除该待办）
 - [ ] **Phase E** — 文档提取架构重构（决策 015，待讨论待实施）
   - [ ] PageExtractor 抽象接口定义
   - [ ] 可插拔提取器链（GovSite + Readability + GenericFallback）

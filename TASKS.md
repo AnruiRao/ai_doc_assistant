@@ -534,7 +534,7 @@ curl -X POST localhost:8000/ingest-url -H "Content-Type: application/json" \
   - [x] Dockerfile + docker-compose.yml
   - [x] run.sh 本地/Docker 统一入口（替换 docker-entrypoint.sh）
   - [x] hf-cache volume 模型持久化
-  - [ ] Release v1.0.0 tag
+  - [ ] ~~Release v1.0.0 tag~~（当前 v0.5.x 远未达到 1.0，移除。v1.0 目标：待 Phase B/C/E + V3.5 全部完成后）
 - [ ] **Phase E**：文档提取架构重构（决策 015，待讨论）
 - [ ] **Phase B**：引导式导办对话 + 用户画像收集（交互轴升级）
 - [ ] **Phase C**：结构化事项数据（JSON/SQLite）+ 条件→材料自动映射（数据轴升级）
