@@ -2,7 +2,7 @@
 
 from unittest.mock import Mock, patch
 from retrieval.rrf import rrf_fuse
-from tools.impl.rag_tool import RagTool
+from tools.rag_tool import RagTool
 
 
 class TestRrfFuse:
@@ -186,8 +186,8 @@ class TestSearchRawRrf:
         self.tool._rewrite = mock_rewriter
 
         with (
-            patch("tools.impl.rag_tool.VectorStore", return_value=mock_vs),
-            patch("tools.impl.rag_tool.rrf_fuse", mock_rrf),
+            patch("tools.rag_tool.VectorStore", return_value=mock_vs),
+            patch("tools.rag_tool.rrf_fuse", mock_rrf),
         ):
             docs, metas = self.tool.search_raw(
                 query="测试问题", k=10,
@@ -208,7 +208,7 @@ class TestSearchRawRrf:
 
         self.tool._rewrite = None
 
-        with patch("tools.impl.rag_tool.VectorStore", return_value=mock_vs):
+        with patch("tools.rag_tool.VectorStore", return_value=mock_vs):
             docs, metas = self.tool.search_raw(
                 query="简单问题", k=10,
                 collection_name="test", persist_directory="/tmp/test",
@@ -233,7 +233,7 @@ class TestSearchRawRrf:
         self.tool._rewrite = None  # 单条子查询
         self.tool._reranker = mock_reranker
 
-        with patch("tools.impl.rag_tool.VectorStore", return_value=mock_vs):
+        with patch("tools.rag_tool.VectorStore", return_value=mock_vs):
             docs, metas = self.tool.search_raw(
                 query="测试", k=4,
                 collection_name="test", persist_directory="/tmp/test",

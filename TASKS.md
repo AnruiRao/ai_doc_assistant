@@ -101,7 +101,7 @@ PYTHONPATH=src .venv/bin/python -m pytest tests/test_retrieval.py -v
 
 ### 任务 9：ui.py ✅
 
-- **文件**: `src/app/ui.py`
+- **文件**: `src/ui/ui.py`
 - **知识点**: Streamlit
 - **补充**: 侧边栏文件上传（tempfile → rag_tool save），聊天对话（session_state 管理历史 + agent.run 传入 history）
 - **验收**: 能上传文档、对话、Agent 回答正常
@@ -115,7 +115,7 @@ PYTHONPATH=src .venv/bin/python -m pytest tests/test_retrieval.py -v
 - **验收**: 上传文档 → 检索 → Agent 回答，全通
 
 ```bash
-uv run streamlit run src/app/ui.py
+uv run streamlit run src/ui/ui.py
 ```
 
 - **依赖**: 9
@@ -134,10 +134,10 @@ src/
 │   ├── config.py          # 配置（Pydantic BaseModel）
 │   ├── llm.py             # LLM 封装（invoke + invoke_with_tools）
 │   ├── agent.py           # Agent 抽象基类
-│   ├── exceptions.py      # 异常体系
+│   └── exceptions.py      # 异常体系
+├── infra/
 │   ├── retry.py           # tenacity 重试装饰器
-│   ├── logging.py         # structlog 结构化日志
-│   └── async_utils.py     # 同步→异步桥接
+│   └── logging.py         # structlog 结构化日志
 ├── tools/
 │   ├── base.py            # Tool 抽象基类
 │   ├── registry.py        # ToolRegistry 注册器
@@ -160,7 +160,6 @@ src/
 ├── api/
 │   ├── main.py            # uvicorn 入口
 │   ├── __init__.py         # create_app() 工厂
-│   ├── dependencies.py    # DI 注入
 │   ├── schemas/
 │   │   ├── chat.py         # ChatRequest / ChatResponse
 │   │   └── documents.py    # UploadResponse / IngestUrlRequest 等
@@ -168,7 +167,7 @@ src/
 │       ├── health.py       # GET /health
 │       ├── chat.py         # POST /chat
 │       └── documents.py    # 文档管理 + POST /ingest-url
-└── app/
+└── ui/
     └── ui.py              # Streamlit 界面（瘦客户端 + URL 导入）
 ```
 
@@ -353,7 +352,7 @@ curl -X POST localhost:8000/chat \  # 验证聊天
 
 #### 增强 2：文档管理 API + Streamlit 瘦客户端 ✅
 
-- **文件**: `src/api/routes/documents.py`、`src/app/ui.py`、`run.sh`
+- **文件**: `src/api/routes/documents.py`、`src/ui/ui.py`、`run.sh`
 - **内容**:
   - FastAPI 文档管理接口：`POST /upload`、`GET /documents`、`DELETE /documents/{id}`
   - JSON 注册表 `data/documents.json` 追踪文档
@@ -399,7 +398,7 @@ curl -X POST localhost:8000/chat \  # 验证聊天
 
 # 或分进程启动
 ./run_api.sh                                    # FastAPI 单独
-uv run streamlit run src/app/ui.py              # Streamlit 单独
+uv run streamlit run src/ui/ui.py              # Streamlit 单独
 
 # 跑测试
 cd /Users/anrui/projects/ai_doc_assistant
@@ -509,7 +508,7 @@ A1: QR 完整实现（实施中：联合检索 + RRF 融合）
 | 任务 | 文件 | 内容 |
 |------|------|------|
 | Agent prompt 替换 | `src/agents/react_agent.py` | 通用 prompt → 市场监管办事导办专用版本 |
-| Streamlit URL 导入 | `src/app/ui.py` | 侧边栏新增"从政务公开网址导入"输入框 |
+| Streamlit URL 导入 | `src/ui/ui.py` | 侧边栏新增"从政务公开网址导入"输入框 |
 
 **启动方式**
 

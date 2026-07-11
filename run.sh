@@ -39,4 +39,4 @@ trap cleanup EXIT
 
 # 启动 Streamlit（前台）
 echo "Starting Streamlit..."
-exec .venv/bin/streamlit run src/app/ui.py
+exec .venv/bin/streamlit run src/ui/ui.py

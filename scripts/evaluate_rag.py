@@ -29,7 +29,7 @@ from ragas.metrics.collections.answer_relevancy.metric import AnswerRelevancy
 from core.config import Settings
 from core.llm import BaseLLM
 from tools.registry import ToolRegistry
-from tools.impl.rag_tool import RagTool
+from tools.rag_tool import RagTool
 from agents.react_agent import ReactAgent
 
 

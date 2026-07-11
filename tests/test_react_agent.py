@@ -5,7 +5,7 @@
 
 import pytest
 
-from tools.impl.calculator import CalculatorTool
+from tools.calculator import CalculatorTool
 from tools.registry import ToolRegistry
 from agents.react_agent import ReactAgent
 

@@ -25,7 +25,7 @@ uv run pytest tests/ -v                     # 跑测试
 ```
 src/ingestion/  文档加载+切分+清理     src/retrieval/  向量库 (Chroma)
 src/agents/     ReAct 循环             src/tools/      工具系统
-src/api/        FastAPI 路由           src/app/        Streamlit UI
+src/api/        FastAPI 路由           src/ui/         Streamlit UI
 docs/decisions/ 架构决策记录
 ```
 
@@ -84,7 +84,7 @@ tools/          ← 工具系统：Tool 基类、ToolRegistry 注册器
 ingestion/      ← 文档处理：加载、切分
 retrieval/      ← 向量检索：embedding、Chroma 封装
 agents/         ← 具体 Agent 实现：ReActAgent
-app/            ← 前端界面：Streamlit
+ui/             ← 前端界面：Streamlit
 ```
 
 设计原则：`core` + `tools` 是抽象层，下层模块具体实现，上层 `app` 组装。
@@ -136,7 +136,7 @@ src/
 │   └── schemas/
 │       ├── chat.py        # ChatRequest / ChatResponse
 │       └── documents.py   # IngestUrlRequest 等
-└── app/
+└── ui/
     └── ui.py           # Streamlit 界面（瘦客户端 + URL 导入）
 ```
 

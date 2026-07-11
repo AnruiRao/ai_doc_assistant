@@ -15,7 +15,7 @@ from core.exceptions import (
     LLMConnectionError,
     LLMApiError,
 )
-from core.retry import llm_retry
+from infra.retry import llm_retry
 from contextlib import contextmanager
 from typing import Any
 

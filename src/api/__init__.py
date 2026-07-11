@@ -5,10 +5,10 @@ from fastapi.responses import JSONResponse
 from core.exceptions import AssistantBaseError
 from core.config import Settings
 from core.llm import BaseLLM
-from core.logging import configure_logging
+from infra.logging import configure_logging
 from tools.registry import ToolRegistry
-from tools.impl.rag_tool import RagTool
-from tools.impl.calculator import CalculatorTool
+from tools.rag_tool import RagTool
+from tools.calculator import CalculatorTool
 from api.routes import health, chat, documents
 
 

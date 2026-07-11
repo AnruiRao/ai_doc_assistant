@@ -15,6 +15,9 @@ data/documents.json
 data/eval_raw*.json
 data/eval_scores_v3_*.json
 
+# Cache
+.ruff_cache/
+
 # IDE
 .vscode/
 .idea/
