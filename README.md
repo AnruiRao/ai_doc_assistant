@@ -9,6 +9,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
   <a href="docs/test-queries.md"><img src="https://img.shields.io/badge/RAGAS_Faithfulness-0.79-brightgreen" alt="RAGAS F=0.79"></a>
   <a href="https://github.com/AnruiRao/ai_doc_assistant/blob/main/docs/decisions/"><img src="https://img.shields.io/badge/arch_decision-15%20records-blueviolet" alt="15 decisions"></a>
+  <a href="https://github.com/AnruiRao/ai_doc_assistant/pkgs/container/ai_doc_assistant"><img src="https://img.shields.io/badge/docker-ready-blue?logo=docker" alt="Docker"></a>
 </p>
 
 ---
@@ -25,10 +26,16 @@
 ## 🚀 快速开始
 
 ```bash
-# 30 秒启动
+# 方式一：Docker（推荐）
 git clone https://github.com/AnruiRao/ai_doc_assistant.git && cd ai_doc_assistant
 cp .env.example .env         # 填入你的 LLM_API_KEY
-uv sync && ./run.sh          # FastAPI + Streamlit 一键启动
+docker compose up            # FastAPI + Streamlit 一键启动
+```
+
+```bash
+# 方式二：本地开发
+cp .env.example .env && uv sync
+./run.sh                     # FastAPI + Streamlit 一键启动
 ```
 
 ```bash

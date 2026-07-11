@@ -33,3 +33,6 @@ decisions/superpowers
 docs/superpowers
 
 .claude
+
+# Temporary decisions / analyses (not tracked)
+decisions-temp/

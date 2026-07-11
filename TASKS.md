@@ -531,6 +531,11 @@ curl -X POST localhost:8000/ingest-url -H "Content-Type: application/json" \
   - [x] 市民/管理员视图条件渲染
   - [x] 管理面板功能归纳（文件上传/URL导入/知识库管理）
   - [ ] 扩展功能（概览统计/检索测试/全量重索引）按需添加
+- [x] **P0 Docker 部署**（ROADMAP.md P0 ✅ 已完成）
+  - [x] Dockerfile + docker-compose.yml
+  - [x] run.sh 本地/Docker 统一入口（替换 docker-entrypoint.sh）
+  - [x] hf-cache volume 模型持久化
+  - [ ] Release v1.0.0 tag
 - [ ] **Phase E**：文档提取架构重构（决策 015，待讨论）
 - [ ] **Phase B**：引导式导办对话 + 用户画像收集（交互轴升级）
 - [ ] **Phase C**：结构化事项数据（JSON/SQLite）+ 条件→材料自动映射（数据轴升级）

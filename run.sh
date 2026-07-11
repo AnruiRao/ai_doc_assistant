@@ -1,10 +1,20 @@
 #!/bin/bash
 cd "$(dirname "$0")"
-export $(grep -v '^#' .env | xargs)
+
+# 加载 .env（本地开发用，Docker 由 compose 传入）
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+fi
+
+# Docker 环境下不加 --reload
+RELOAD_FLAG=""
+if [ -z "${DOCKER:-}" ]; then
+    RELOAD_FLAG="--reload"
+fi
 
 # 启动 FastAPI（后台）
 echo "Starting FastAPI..."
-uv run uvicorn api.main:app --reload --host 0.0.0.0 --port 8000 --app-dir src &
+.venv/bin/uvicorn api.main:app $RELOAD_FLAG --host 0.0.0.0 --port 8000 --app-dir src &
 API_PID=$!
 
 # 等待 FastAPI 就绪
@@ -29,4 +39,4 @@ trap cleanup EXIT
 
 # 启动 Streamlit（前台）
 echo "Starting Streamlit..."
-uv run streamlit run src/app/ui.py
+exec .venv/bin/streamlit run src/app/ui.py
