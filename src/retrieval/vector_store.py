@@ -10,6 +10,7 @@ logger = structlog.get_logger(__name__)
 class VectorStore:
     def __init__(self, collection_name: str = "documents", persist_directory: str | Path = "data/chroma"):
 
+        self.persist_directory = Path(persist_directory)
         huggingface_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
             model_name="BAAI/bge-base-zh-v1.5"
         )

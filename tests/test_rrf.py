@@ -178,6 +178,7 @@ class TestSearchRawRrf:
         mock_vs.similarity_search.return_value = {
             "documents": [["doc1", "doc2"]],
             "metadatas": [[{"source": "s", "chunk_index": 0}, {"source": "s", "chunk_index": 1}]],
+            "distances": [[0.1, 0.2]],  # 低于阈值 1.0，保留
         }
 
         mock_rewriter = Mock()
@@ -204,6 +205,7 @@ class TestSearchRawRrf:
         mock_vs.similarity_search.return_value = {
             "documents": [["doc1"]],
             "metadatas": [[{"source": "s", "chunk_index": 0}]],
+            "distances": [[0.15]],  # 低于阈值 1.0，保留
         }
 
         self.tool._rewrite = None
@@ -223,6 +225,7 @@ class TestSearchRawRrf:
         mock_vs.similarity_search.return_value = {
             "documents": [[f"doc{i}" for i in range(20)]],
             "metadatas": [[{"source": "s", "chunk_index": i} for i in range(20)]],
+            "distances": [[0.1] * 20],  # 全部低于阈值 1.0，保留
         }
 
         mock_reranker = Mock()

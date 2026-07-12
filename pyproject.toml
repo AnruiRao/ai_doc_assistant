@@ -1,6 +1,6 @@
 [project]
 name = "ai-doc-assistant"
-version = "0.5.1"
+version = "0.5.2"
 description = "市场监管办事导办助手 — 基于 RAG 和 Agent 的政务智能导办"
 requires-python = ">=3.12"
 dependencies = [

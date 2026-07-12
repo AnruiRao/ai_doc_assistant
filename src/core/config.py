@@ -7,6 +7,7 @@ load_dotenv()
 
 DEFAULT_MODEL = "deepseek-v3"
 DEFAULT_PROVIDER = "qwen"
+SIMILARITY_THRESHOLD = 1.0
 
 
 class Settings(BaseModel):
@@ -19,6 +20,7 @@ class Settings(BaseModel):
     timeout: int = 60
     enable_query_rewrite: bool = False
     enable_reranker: bool = True
+    similarity_threshold: float = SIMILARITY_THRESHOLD
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -30,4 +32,5 @@ class Settings(BaseModel):
             enable_query_rewrite=os.getenv("ENABLE_QUERY_REWRITE", False),
             enable_reranker=os.getenv("ENABLE_RERANKER", True),
             temperature=float(os.getenv("LLM_TEMPERATURE", "0.3")),
+            similarity_threshold=float(os.getenv("SIMILARITY_THRESHOLD", SIMILARITY_THRESHOLD)),
         )

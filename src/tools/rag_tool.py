@@ -82,12 +82,22 @@ class RagTool(Tool):
         k: int = 10,
         collection_name: str = "documents",
         persist_directory: str = "data/chroma",
+        relevance_threshold: float | None = None,
     ) -> tuple[list[str], list[dict]]:
-        """核心检索逻辑：rewrite → 多路检索 → RRF 融合 → reranker 精排。
+        """核心检索逻辑：rewrite → 多路检索 → 距离阈值过滤 → RRF 融合 → reranker 精排。
 
         返回 (docs_list, metas_list)，不做滑动窗口、不格式化。
-        评测脚本和 run() 共用此入口，后续加 reranker 只改这里。
+        评测脚本和 run() 共用此入口。
+
+        Args:
+            relevance_threshold: 向量距离阈值（L2），低于此值的才视为相关。
+                默认 1.0（BGE 归一化向量，L2=1.0 ≈ cosine~0.5，宽松过滤，交由 reranker 精排）。
+                返回全部结果请设为 inf。
         """
+        config = Settings.from_env()
+        if relevance_threshold is None:
+            relevance_threshold = config.similarity_threshold
+
         vs = self._get_vs(collection_name=collection_name, persist_directory=persist_directory)
 
         reranker = self._get_reranker()
@@ -99,15 +109,30 @@ class RagTool(Tool):
         ranked_lists = []
         for sq in sub_queries:
             r = vs.similarity_search(query=sq, k=recall_k)
-            docs_batch = r["documents"][0] if r.get("documents") else []
+            docs_batch = r.get("documents", [[]])[0] if r.get("documents") else []
             if not docs_batch:
                 ranked_lists.append([])
                 continue
-            metas_batch = r["metadatas"][0] if r.get("metadatas") else [None] * len(docs_batch)
-            ranked_lists.append(list(zip(docs_batch, metas_batch)))
+            dists = r.get("distances", [[]])[0] if r.get("distances") else []
+            metas_batch = r.get("metadatas", [[]])[0] if r.get("metadatas") else [None] * len(docs_batch)
+
+            # 相关性阈值过滤：距离大于 threshold 的视为不相关
+            filtered = [
+                (doc, meta)
+                for doc, meta, dist in zip(docs_batch, metas_batch, dists)
+                if dist <= relevance_threshold
+            ]
+            ranked_lists.append(filtered)
+
+        # 所有子查询都未返回相关内容
+        if not any(ranked_lists):
+            return [], []
 
         # RRF 融合：多条子查询时自动融合，单条时原样返回
         all_docs, all_metas = rrf_fuse(ranked_lists, top_k=recall_k)
+
+        if not all_docs:
+            return [], []
 
         # 去重合并后，reranker 精排取 top-k
         if reranker is not None and len(all_docs) > k:
@@ -119,8 +144,6 @@ class RagTool(Tool):
 
             all_docs = [doc for doc, _ in reranked]
             all_metas = [doc_to_meta.get(doc, {}) for doc in all_docs]
-
-        # TODO: 将返回文本控制在k条
 
         return all_docs, all_metas
 
@@ -166,7 +189,8 @@ class RagTool(Tool):
             )
 
             if not docs:
-                return "未检索到相关内容"
+                logger.info("搜索未找到匹配内容", query=query)
+                return "检索结果为空：知识库中未找到与查询相关的内容。"
 
             vs = self._get_vs(collection_name=collection_name, persist_directory=persist_directory)
 
