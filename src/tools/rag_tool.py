@@ -1,3 +1,4 @@
+from pathlib import Path
 from uuid import uuid4
 from core.llm import BaseLLM
 from core.config import Settings
@@ -39,6 +40,7 @@ class RagTool(Tool):
         )
         self._rewrite = None
         self._reranker = None
+        self._vs: VectorStore | None = None
 
     def _get_rewrite(self) -> QueryRewriter | None:
         config = Settings.from_env()
@@ -57,6 +59,23 @@ class RagTool(Tool):
             self._reranker = Reranker()
         return self._reranker
 
+    def _get_vs(
+        self,
+        collection_name: str = "documents",
+        persist_directory: str = "data/chroma",
+    ) -> VectorStore:
+        """懒加载缓存 VectorStore 实例，避免同请求中重复创建。
+
+        与 _get_rewrite / _get_reranker 保持一致的缓存策略。
+        缓存失效：persist_directory 变化时重新创建。
+        """
+        if self._vs is None or self._vs.persist_directory != Path(persist_directory):
+            self._vs = VectorStore(
+                collection_name=collection_name,
+                persist_directory=persist_directory,
+            )
+        return self._vs
+
     def search_raw(
         self,
         query: str,
@@ -69,7 +88,7 @@ class RagTool(Tool):
         返回 (docs_list, metas_list)，不做滑动窗口、不格式化。
         评测脚本和 run() 共用此入口，后续加 reranker 只改这里。
         """
-        vs = VectorStore(collection_name=collection_name, persist_directory=persist_directory)
+        vs = self._get_vs(collection_name=collection_name, persist_directory=persist_directory)
 
         reranker = self._get_reranker()
         recall_k = 20 if reranker is not None else k
@@ -130,7 +149,7 @@ class RagTool(Tool):
             ids = [str(uuid4()) for _ in chunks]
             metadatas = [{"source": path, "chunk_index": i} for i in range(len(chunks))]
 
-            vs = VectorStore(collection_name=collection_name, persist_directory=persist_directory)
+            vs = self._get_vs(collection_name=collection_name, persist_directory=persist_directory)
             vs.add_documents(documents=chunks, ids=ids, metadatas=metadatas)
 
             logger.info("调用工具成功",use_for = use_for)
@@ -149,7 +168,7 @@ class RagTool(Tool):
             if not docs:
                 return "未检索到相关内容"
 
-            vs = VectorStore(collection_name=collection_name, persist_directory=persist_directory)
+            vs = self._get_vs(collection_name=collection_name, persist_directory=persist_directory)
 
             lines = []
             seen_ids = set()
@@ -191,7 +210,7 @@ class RagTool(Tool):
             return f"检索到 {len(docs)} 条结果（含上下文）:\n\n" + "\n---\n".join(lines)
 
         if use_for == "delete":
-            vs = VectorStore(collection_name=collection_name, persist_directory=persist_directory)
+            vs = self._get_vs(collection_name=collection_name, persist_directory=persist_directory)
             count = vs.count()
             if count == 0:
                 return f"集合 '{collection_name}' 不存在或已为空"
