@@ -1,6 +1,7 @@
 <p align="center">
-  <h1 align="center">市场监管办事导办助手</h1>
-  <p align="center">基于自实现 RAG + ReAct Agent 的政务办事导办系统，核心链路零依赖框架</p>
+  <h1 align="center">市场监管办事导办助手 🏛️</h1>
+  <p align="center"><b>自实现 RAG + ReAct Agent · 核心链路零框架依赖 · 评测驱动持续优化</b></p>
+  <p align="center">基于大模型的政务智能导办系统，从 LLM 封装到 ReAct 循环、从文档切分到 Reranker 精排，<br>全部手写实现，深入理解而非 API 套壳</p>
 </p>
 
 <p align="center">
@@ -16,12 +17,14 @@
 
 ## 🎯 亮点
 
-- **自实现 ReAct** — 手写 while + tool_calls 循环，非 LangChain 封装
-- **自实现 RAG** — loader → cleaner → chunker → VectorStore，全链路可控
-- **评测驱动优化** — Faithfulness 从 0.38 提升至 **0.79**（+108%）
-- **BGE 中文语义** — bge-base-zh-v1.5 + Reranker 精排，中文检索优化
-- **政务文档解析** — 章节识别（编号+命名章节）+ 政务网页抓取，垂直领域就绪
-- **13 条架构决策记录** — 每条记录"为什么这样选"，面试可直接引用
+- **🤖 自实现 ReAct** — 手写 while + tool_calls 推理循环，非 LangChain 封装，每一行都可调试
+- **📚 自实现 RAG** — loader → cleaner → chunker → VectorStore → Reranker，全链路自主可控
+- **📈 评测驱动优化** — Faithfulness 从 0.38 提升至 **0.79**（+108%），Reranker 单点 +16%
+- **🇨🇳 BGE 中文语义** — bge-base-zh-v1.5 + bge-reranker-v2-m3 精排，政务中文检索优化
+- **🏛️ 政务文档解析** — 编号章节/命名章节自动识别 + 政务网页结构化抓取，垂直领域就绪
+- **📝 15 条架构决策记录** — 每条记录选项对比和放弃理由，面试可直接引用
+- **🧪 94 个测试用例** — pytest + GitHub Actions CI，每次提交自动验证
+- **🐳 Docker 一键部署** — docker compose up 即可运行
 
 ## 🚀 快速开始
 
